@@ -3,6 +3,7 @@ import dash_bootstrap_components as dbc
 from flask import Flask, Response
 from basisklassen_cam import Camera
 import cv2
+import numpy as np
 
 external_stylesheets = [dbc.themes.DARKLY]
 server = Flask(__name__)
@@ -19,9 +20,23 @@ def unterseite_test():
 def generate_stream(cam):
     while True:
         frame = cam.get_frame()
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        resized = cv2.resize(frame, None, fx=0.5, fy=0.5)
+        hsv = cv2.cvtColor(resized, cv2.COLOR_BGR2HSV)
+        filtered = cv2.inRange(hsv, np.array([90, 0, 0]), np.array([120, 255, 255]))
+        h, w = filtered.shape
+        resized = resized[int(0.3*h):int(0.8*h), :]
+        cropped = filtered[int(0.3*h):int(0.8*h):, :]
+        
+        median_blurred = cv2.medianBlur(cropped, 13)
+        edges = cv2.Canny(median_blurred, 100, 200)
+        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=20, minLineLength=20, maxLineGap=10)
+        if lines is not None:
+            for line in lines:
+                x1, y1, x2, y2 = line[0]
+                cv2.line(resized, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        #print(lines)
+        _, frame_as_jpeg = cv2.imencode(".jpeg", resized)
 
-        _, frame_as_jpeg = cv2.imencode(".jpeg", hsv)
         frame_in_bytes = frame_as_jpeg.tobytes()
 
         frame_as_string = (b'--frame\r\n'
