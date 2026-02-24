@@ -24,16 +24,20 @@ def generate_stream(cam):
         hsv = cv2.cvtColor(resized, cv2.COLOR_BGR2HSV)
         filtered = cv2.inRange(hsv, np.array([90, 0, 0]), np.array([120, 255, 255]))
         h, w = filtered.shape
-        cropped = filtered[int(0.2*h):, :]
+        cropped = filtered[int(0.35*h):int(0.85*h), :]
+        cropped2 = resized[int(0.35*h):int(0.85*h), :]
+        print("cropped2", cropped2)
+        print("cropped", cropped)
         median_blurred = cv2.medianBlur(cropped, 13)
         edges = cv2.Canny(median_blurred, 100, 200)
         lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=20, minLineLength=20, maxLineGap=10)
         if lines is not None:
             for line in lines:
                 x1, y1, x2, y2 = line[0]
-                cv2.line(resized[int(0.2*h):, :], (x1, y1), (x2, y2), (0, 255, 0), 2)
-        #print(lines)
-        _, frame_as_jpeg = cv2.imencode(".jpeg", resized)
+                cv2.line(cropped2, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                #cv2.line(resized[int(0.35*h):int(0.85*h), :], (x1, y1), (x2, y2), (0, 255, 0), 2)
+        print(lines)
+        _, frame_as_jpeg = cv2.imencode(".jpeg", cropped2)
 
         frame_in_bytes = frame_as_jpeg.tobytes()
 
