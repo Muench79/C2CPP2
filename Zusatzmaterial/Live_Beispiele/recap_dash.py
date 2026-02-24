@@ -80,15 +80,15 @@ def generate_stream(cam):
         filtered = cv2.inRange(hsv, hsv_range.lowerbound, hsv_range.upperbound)
         #filtered = cv2.inRange(hsv, np.array([90, 0, 0]), np.array([120, 255, 255]))
         h, w = filtered.shape
-        print(filtered.shape)
+        #print(filtered.shape)
         #print('jhjjhhdjfhguhr', cropp_img.ns[0]*0.1)
-        print("Was kommt hier raus?", cropp_img.ns)
+        #print("Was kommt hier raus?", cropp_img.ns)
         int(h - (cropp_img.ns[1] * 0.01 * h))
         #resized = resized[int(cropp_img.ns[0]*0.01*h):int(h - (cropp_img.ns[1] * 0.01 * h)), :]
         resized = resized[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h), int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
         #cropped = filtered[int(cropp_img.ns[0]*0.01*h):int(h - (cropp_img.ns[1] * 0.01 * h)):, :]
         cropped = filtered[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h), int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
-        print('Cropped', cropped.shape)
+        #print('Cropped', cropped.shape)
         # resized = resized[int(0.3*h):int(0.8*h), :]
         # cropped = filtered[int(0.3*h):int(0.8*h):, :]
         h, w, c = resized.shape
@@ -106,7 +106,7 @@ def generate_stream(cam):
                     cv2.line(resized, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 else:
                     cv2.line(resized, (x1, y1), (x2, y2), (0, 255, 255), 2)
-                print(int(winkel(x1,y1,x2,y2)))
+                #print(int(winkel(x1,y1,x2,y2)))
                 #print(winkel(1,1,1,10))
             #print(lines)
         _, frame_as_jpeg = cv2.imencode(".jpeg", resized)
