@@ -28,5 +28,9 @@ test_to_be_deleted.ipynb
 .vscode
 
 .venv
+*venv
+*env
 
 *.png
+*.json
+config.json
