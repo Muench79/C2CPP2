@@ -8,6 +8,14 @@ import sys
 import pprint
 import json
 import math
+from basecar import BaseCar
+import os
+
+os.system('sudo iw dev wlan0 set power_save off')
+car = BaseCar()
+car.steering_angle = 90
+car.drive2(0)
+#sys.exit()
 
 class SteeringAngle:
     def __init__(self):
@@ -23,22 +31,22 @@ class SteeringAngle:
 
     def line_inner_1(self, x1, y1, x2, y2):
         self.__line_inner_1 = (x1, y1, x2, y2)
-        print(self.__line_inner_1)
+        #print(self.__line_inner_1)
     
     def line_inner_2(self, x1, y1, x2, y2):
         self.__line_inner_2 = (x1, y1, x2, y2)
-        print(self.__line_inner_2)
+        #print(self.__line_inner_2)
 
     def line_outer_1(self, x1, y1, x2, y2):
         self.__line_outer_1 = (x1, y1, x2, y2)
-        print(self.__line_outer_1)
+        #print(self.__line_outer_1)
     
     def line_outer_2(self, x1, y1, x2, y2):
         self.__line_outer_2 = (x1, y1, x2, y2)
 
     def measuring_offset(self, offset):
         self.__offset = offset
-        print(self.__line_outer_2)
+        #print(self.__line_outer_2)
     
     def __str__(self):
         return ('Inner_1: ' + str(self.__line_inner_1) + '\n'
@@ -72,7 +80,8 @@ class SteeringAngle:
             m_mean = (m_1 + m_2) / 2
         except:
             return 90, 0
-        angle = math.degrees(math.atan2(offset, (m_mean - center)))
+        
+        angle = math.degrees(math.atan2(offset, (center - m_mean)))
         
         return  (angle, m_mean)
     
@@ -178,6 +187,8 @@ def unterseite_test():
 
 def generate_stream(cam):
     while True:
+
+        #car.drive2(20)
         linien_rechts = []
         linien_links = []
         linien_rechts_sortiert = []
@@ -225,7 +236,7 @@ def generate_stream(cam):
                     else:
                         if y1 <= messsoffset <= y2:
                             linien_rechts.append((x1, y1, x2, y2))
-                    linien_rechts_sortiert = sorted(linien_rechts, key=lambda v: (v[1], v[0]))
+                    linien_rechts_sortiert = sorted(linien_rechts, key=lambda v: v[0])
                     cv2.line(resized, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 else:
                     if y2 < y1:
@@ -243,23 +254,25 @@ def generate_stream(cam):
                 angle.line_inner_2(*linien_rechts[0])
                 angle.line_outer_1(*linien_links[0])
                 angle.line_outer_2(*linien_rechts[-1])
+                car.steering_angle = angle.result[0]
         
-        cv2.line(resized, (0, messsoffset), (w, messsoffset), (0, 0, 255), 3)
-        print('Result',angle.result[1])
-        cv2.line(resized, (int(angle.result[1]), 0), (int(angle.result[1]), h), (0, 0, 255), 3)
-        cv2.line(resized, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)
-        _, frame_as_jpeg = cv2.imencode(".jpeg", resized)
+        cropped_rgb = cv2.cvtColor(cropped, cv2.COLOR_GRAY2RGB)
+        cv2.line(cropped_rgb, (0, messsoffset), (w, messsoffset), (0, 0, 255), 3)
+        #print('Result',angle.result[1])
+        cv2.line(cropped_rgb, (int(angle.result[1]), 0), (int(angle.result[1]), h), (0, 0, 255), 3)
+        cv2.line(cropped_rgb, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)
+        _, frame_as_jpeg = cv2.imencode(".jpeg", cropped_rgb)
 
         frame_in_bytes = frame_as_jpeg.tobytes()
 
         frame_as_string = (b'--frame\r\n'
                 b'Content-Type: image/jpeg\r\n\r\n' + frame_in_bytes + b'\r\n\r\n')
 #sys.exit()
-        print('Links', messsoffset, int(w/2), angle.result, '#'*40)
+        #print('Links', messsoffset, int(w/2), angle.result, '#'*40)
         print(angle)
-        pprint.pprint(linien_links_sortiert)
-        print('Rechts' + '#'*40)
-        pprint.pprint(linien_rechts_sortiert)
+        #pprint.pprint(linien_links_sortiert)
+        #print('Rechts' + '#'*40)
+        #pprint.pprint(linien_rechts_sortiert)
         x_links_a = messsoffset
         x_links_i = messsoffset
         x_rechts_a = messsoffset
@@ -292,6 +305,8 @@ app.layout = dbc.Container([
             dcc.RangeSlider(id="slider-ns", min=0, max=100, value=[35, 85]),
             html.P('Links, Rechts'),
             dcc.RangeSlider(id="slider-we", min=0, max=100),
+            html.P('Geschwindigkeit'),
+            dcc.Slider(id="slider-speed", min=0, max=30, value=0),
         ],
         width=6)
     ])
@@ -306,8 +321,9 @@ app.layout = dbc.Container([
     Input("slider-v", "value"),
     Input("slider-ns", "value"),
     Input("slider-we", "value"),
+    Input("slider-speed", "value"),
 )
-def update_p(value_h, value_s, value_v, value_ns, value_we):
+def update_p(value_h, value_s, value_v, value_ns, value_we, value_speed):
     try:
         hsv_range.lower_bound([value_h[0], value_s[0], value_v[0]])
         hsv_range.upper_bound([value_h[1], value_s[1], value_v[1]])
@@ -321,6 +337,8 @@ def update_p(value_h, value_s, value_v, value_ns, value_we):
         cropp_img.set_we([0,100])
     else:
         cropp_img.set_we(value_we)
+    print(value_speed)
+    car.drive2(int(value_speed))
     #cropp_img.set_ns(value_ns)
     #cropp_img.set_we(value_we)
     #print(cropp_img.ns, cropp_img.we, 1 - cropp_img.ns[1]*0.01)
