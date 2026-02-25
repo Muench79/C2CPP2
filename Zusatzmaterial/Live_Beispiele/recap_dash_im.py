@@ -52,12 +52,24 @@ class Cropp:
 
 
 #sys.exit()
-def winkel(x1, y1, x2, y2):
+def winkel(w, x1, y1, x2, y2):
+    wl = None
+    wr = None
     dx = x2 - x1
     dy = y2 - y1
     theta = math.atan2(dy, dx)          # Winkel in Radiant
     grad = math.degrees(theta)          # Umrechnung in Grad
-    return grad
+    if x1 > int(w/2):
+        dx = x2 - x1
+        dy = y2 - y1
+        theta = math.atan2(dy, dx)          # Winkel in Radiant
+        wr = math.degrees(theta)
+    else:
+        dx = x2 - x1
+        dy = y2 - y1
+        theta = math.atan2(dy, dx)          # Winkel in Radiant
+        wl = math.degrees(theta)          
+    return wr, wl, grad
 
 hsv_range = HSVRange()
 cropp_img = Cropp()
@@ -70,7 +82,8 @@ app = Dash(external_stylesheets=external_stylesheets, server=server)
 def unterseite_test():
     return "Hier ist die zweite Seite"
 
-
+linie_rechts = []
+linie_links = []
 def generate_stream(cam):
     while True:
         frame = cam.get_frame()
@@ -78,12 +91,12 @@ def generate_stream(cam):
         hsv = cv2.cvtColor(resized, cv2.COLOR_BGR2HSV)
         
         filtered = cv2.inRange(hsv, hsv_range.lowerbound, hsv_range.upperbound)
-        #filtered = cv2.inRange(hsv, np.array([90, 0, 0]), np.array([120, 255, 255]))
+        #filtered wird ueber die Slider gesetzt wobei die Sider ein Startvalue haben
         h, w = filtered.shape
         int(h - (cropp_img.ns[1] * 0.01 * h))
-        #resized = resized[int(cropp_img.ns[0]*0.01*h):int(h - (cropp_img.ns[1] * 0.01 * h)), :]
+        #resized wird ueber die Slider gesetzt wobei die Sider ein Startvalue haben
         resized = resized[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h), int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
-        #cropped = filtered[int(cropp_img.ns[0]*0.01*h):int(h - (cropp_img.ns[1] * 0.01 * h)):, :]
+        #cropped = wird ueber die Slider gesetzt wobei die Sider ein Startvalue haben
         cropped = filtered[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h), int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
         
         h, w, c = resized.shape
@@ -96,14 +109,18 @@ def generate_stream(cam):
         if lines is not None:
              for line in lines:
                 x1, y1, x2, y2 = line[0]
+                print("Winkel" , winkel(w,*line[0]))
+
                 if x1 > int(w/2):
 
                     cv2.line(resized, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    #rechte Fahrbahnseite
                 else:
                     cv2.line(resized, (x1, y1), (x2, y2), (0, 255, 255), 2)
-                #print(int(winkel(x1,y1,x2,y2)))
-                #print(winkel(1,1,1,10))
-            #print(lines)
+                    #Linke Fahrbahnsite
+                #In Abhängigkeit der Linienposition links rechts wird die Linienfarbe geändert
+                #Als Bezugsgroeße wird die halbe Bildbreite genutzt
+            
         _, frame_as_jpeg = cv2.imencode(".jpeg", resized)
 
         frame_in_bytes = frame_as_jpeg.tobytes()
@@ -167,12 +184,11 @@ def update_p(value_h, value_s, value_v, value_ns, value_we):
         cropp_img.set_we([0,100])
     else:
         cropp_img.set_we(value_we)
-    #cropp_img.set_ns(value_ns)
-    #cropp_img.set_we(value_we)
-    #print(cropp_img.ns, cropp_img.we, 1 - cropp_img.ns[1]*0.01)
+    
     return_value = f"Die Einstelungen sind: {value_h}, {value_s}, {value_v}, \n{value_ns}, {value_we}"
     return return_value
 
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=False)
+
