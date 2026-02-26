@@ -200,14 +200,10 @@ def generate_stream(cam):
         
         filtered = cv2.inRange(hsv, hsv_range.lowerbound, hsv_range.upperbound)
         #filtered = cv2.inRange(hsv, np.array([90, 0, 0]), np.array([120, 255, 255]))
-        h, w = filtered.shape
-<<<<<<< HEAD
-=======
-        
+        h, w = filtered.shape      
         #print(filtered.shape)
         #print('jhjjhhdjfhguhr', cropp_img.ns[0]*0.1)
         #print("Was kommt hier raus?", cropp_img.ns)
->>>>>>> joema
         int(h - (cropp_img.ns[1] * 0.01 * h))
         #resized = resized[int(cropp_img.ns[0]*0.01*h):int(h - (cropp_img.ns[1] * 0.01 * h)), :]
         resized = resized[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h), int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
