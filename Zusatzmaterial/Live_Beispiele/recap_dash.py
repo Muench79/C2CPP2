@@ -214,7 +214,7 @@ def generate_stream(cam):
         #filtered = cv2.inRange(hsv, np.array([90, 0, 0]), np.array([120, 255, 255]))
         h, w = filtered.shape
         
-        offset = 50
+        offset = 20
         #print(filtered.shape)
         #print('jhjjhhdjfhguhr', cropp_img.ns[0]*0.1)
         #print("Was kommt hier raus?", cropp_img.ns)
@@ -267,7 +267,7 @@ def generate_stream(cam):
                 angle.line_inner_2(*linien_rechts[0])
                 angle.line_outer_1(*linien_links[0])
                 angle.line_outer_2(*linien_rechts[-1])
-                car.steering_angle = angle.result[0]
+                #car.steering_angle = angle.result[0]
         
         row = cropped[messsoffset]
         white_pixels = np.where(row == 255)[0]
@@ -276,15 +276,14 @@ def generate_stream(cam):
             start = white_pixels[0]
             prev = white_pixels[0]
 
-        for x in white_pixels[1:]:
-            if x == prev + 1:
-                prev = x
-            else:
-                clusters.append((start, prev))
-                start = x
-                prev = x
-
-        clusters.append((start, prev))
+            for x in white_pixels[1:]:
+                if x == prev + 1:
+                    prev = x
+                else:
+                    clusters.append((start, prev))
+                    start = x
+                    prev = x
+            clusters.append((start, prev))
 
         if len(clusters) == 2:
             x_left_outer = clusters[0][0]
@@ -300,14 +299,20 @@ def generate_stream(cam):
 
             diff = abs(center_inner - int(w/2))
             
-
-
-            print(diff, offset)# + (clusters[1][1] - clusters[0][0])))
-
+                     # Winkel in Radiant
+            grad = int(math.degrees(math.atan2(offset, diff)) )
+            if int(w/2) > center_inner:
+                car.steering_angle = grad
+                print(diff, offset, grad)# + (clusters[1][1] - clusters[0][0])))
+            else:
+                car.steering_angle = 180 - grad
+                print(diff, offset, 180 - grad)
         cropped_rgb = cv2.cvtColor(cropped, cv2.COLOR_GRAY2RGB)
         cv2.line(cropped_rgb, (0, messsoffset), (w, messsoffset), (0, 0, 255), 3)
         #print('Result',angle.result[1])
-        cv2.line(cropped_rgb, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
+        
+        if len(clusters) == 2:
+            cv2.line(cropped_rgb, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
         #cv2.line(cropped_rgb, (int(angle.result[1]), 0), (int(angle.result[1]), h), (0, 0, 255), 3)
         cv2.line(cropped_rgb, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)
         _, frame_as_jpeg = cv2.imencode(".jpeg", cropped_rgb)
