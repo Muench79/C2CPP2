@@ -28,20 +28,32 @@ class SteeringAngle:
 
     def screen_center(self, c):
         self.__screen_center = c
-
+    
+    @staticmethod
+    def line_sort(x1, y1, x2, y2):
+        #return x1, y1, x2, y2
+        if y1 > y2:
+            return x2, y2, x1, y1
+        else:
+            return x1, y1, x2, y2
+    
     def line_inner_1(self, x1, y1, x2, y2):
+        x1, y1, x2, y2 = self.line_sort(x1, y1, x2, y2)
         self.__line_inner_1 = (x1, y1, x2, y2)
         #print(self.__line_inner_1)
     
     def line_inner_2(self, x1, y1, x2, y2):
+        x1, y1, x2, y2 = self.line_sort(x1, y1, x2, y2)
         self.__line_inner_2 = (x1, y1, x2, y2)
         #print(self.__line_inner_2)
 
     def line_outer_1(self, x1, y1, x2, y2):
+        x1, y1, x2, y2 = self.line_sort(x1, y1, x2, y2)
         self.__line_outer_1 = (x1, y1, x2, y2)
         #print(self.__line_outer_1)
     
     def line_outer_2(self, x1, y1, x2, y2):
+        x1, y1, x2, y2 = self.line_sort(x1, y1, x2, y2)
         self.__line_outer_2 = (x1, y1, x2, y2)
 
     def measuring_offset(self, offset):
@@ -197,27 +209,36 @@ def generate_stream(cam):
         frame = cam.get_frame()
         resized = cv2.resize(frame, None, fx=0.5, fy=0.5)
         hsv = cv2.cvtColor(resized, cv2.COLOR_BGR2HSV)
-        
+        #print(hsv_range.lowerbound, hsv_range.upperbound, type(hsv_range.lowerbound), type(hsv_range.upperbound))
         filtered = cv2.inRange(hsv, hsv_range.lowerbound, hsv_range.upperbound)
+        # In Range Funtion erzeugt schwarz weiß Bild
         #filtered = cv2.inRange(hsv, np.array([90, 0, 0]), np.array([120, 255, 255]))
         h, w = filtered.shape
         
+        offset = 50
         #print(filtered.shape)
         #print('jhjjhhdjfhguhr', cropp_img.ns[0]*0.1)
         #print("Was kommt hier raus?", cropp_img.ns)
-
-        int(h - (cropp_img.ns[1] * 0.01 * h))
+        #int(h - (cropp_img.ns[1] * 0.01 * h))
         #resized = resized[int(cropp_img.ns[0]*0.01*h):int(h - (cropp_img.ns[1] * 0.01 * h)), :]
         resized = resized[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h), int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
+
         messsoffset = resized.shape[0] - 50
+        #messoffset Horizontle Line 
+
+        messsoffset = resized.shape[0] - offset
+
         
 
         #cropped = filtered[int(cropp_img.ns[0]*0.01*h):int(h - (cropp_img.ns[1] * 0.01 * h)):, :]
         cropped = filtered[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h), int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
-        
+        #Bild seitlich zsammen schneidenf
+        #print('Cropped', cropped.shape)
+        # resized = resized[int(0.3*h):int(0.8*h), :]
+        # cropped = filtered[int(0.3*h):int(0.8*h):, :]
         h, w, c = resized.shape
         angle.screen_center(int(w/2))
-        angle.measuring_offset(50)
+        angle.measuring_offset(offset)
         median_blurred = cv2.medianBlur(cropped, 13)
         edges = cv2.Canny(median_blurred, 100, 200)
         lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=20, minLineLength=20, maxLineGap=10)
@@ -255,10 +276,46 @@ def generate_stream(cam):
                 angle.line_outer_2(*linien_rechts[-1])
                 car.steering_angle = angle.result[0]
         
+        row = cropped[messsoffset]
+        white_pixels = np.where(row == 255)[0]
+        clusters = []
+        if len(white_pixels) > 0:
+            start = white_pixels[0]
+            prev = white_pixels[0]
+
+        for x in white_pixels[1:]:
+            if x == prev + 1:
+                prev = x
+            else:
+                clusters.append((start, prev))
+                start = x
+                prev = x
+
+        clusters.append((start, prev))
+
+        if len(clusters) == 2:
+            x_left_outer = clusters[0][0]
+            x_left_inner = clusters[0][1]
+            x_right_inner = clusters[1][0]
+            x_right_outer = clusters[1][1]
+
+            distance_outer = x_right_outer - x_left_outer
+            distance_inner = x_right_inner - x_left_inner
+            
+            center_outer = int(x_left_outer + distance_outer / 2)
+            center_inner = int(x_left_inner + distance_inner / 2)
+
+            diff = abs(center_inner - int(w/2))
+            
+
+
+            print(diff, offset)# + (clusters[1][1] - clusters[0][0])))
+
         cropped_rgb = cv2.cvtColor(cropped, cv2.COLOR_GRAY2RGB)
         cv2.line(cropped_rgb, (0, messsoffset), (w, messsoffset), (0, 0, 255), 3)
         #print('Result',angle.result[1])
-        cv2.line(cropped_rgb, (int(angle.result[1]), 0), (int(angle.result[1]), h), (0, 0, 255), 3)
+        cv2.line(cropped_rgb, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
+        #cv2.line(cropped_rgb, (int(angle.result[1]), 0), (int(angle.result[1]), h), (0, 0, 255), 3)
         cv2.line(cropped_rgb, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)
         _, frame_as_jpeg = cv2.imencode(".jpeg", cropped_rgb)
 
@@ -268,7 +325,7 @@ def generate_stream(cam):
                 b'Content-Type: image/jpeg\r\n\r\n' + frame_in_bytes + b'\r\n\r\n')
 #sys.exit()
         #print('Links', messsoffset, int(w/2), angle.result, '#'*40)
-        print(angle)
+        #print(angle)
         #pprint.pprint(linien_links_sortiert)
         #print('Rechts' + '#'*40)
         #pprint.pprint(linien_rechts_sortiert)
@@ -305,7 +362,7 @@ app.layout = dbc.Container([
             html.P('Links, Rechts'),
             dcc.RangeSlider(id="slider-we", min=0, max=100),
             html.P('Geschwindigkeit'),
-            dcc.Slider(id="slider-speed", min=0, max=30, value=0),
+            dcc.Slider(id="slider-speed", min=0, max=50, value=0),
         ],
         width=6)
     ])
