@@ -222,12 +222,12 @@ def generate_stream(cam):
         #int(h - (cropp_img.ns[1] * 0.01 * h))
         #resized = resized[int(cropp_img.ns[0]*0.01*h):int(h - (cropp_img.ns[1] * 0.01 * h)), :]
         resized = resized[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h), int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
-<<<<<<< HEAD:Zusatzmaterial/Live_Beispiele/recap_dash_02_im1.py
+
         messsoffset = resized.shape[0] - 50
         #messoffset Horizontle Line 
-=======
+
         messsoffset = resized.shape[0] - offset
->>>>>>> joema:Zusatzmaterial/Live_Beispiele/recap_dash.py
+
         
 
         #cropped = filtered[int(cropp_img.ns[0]*0.01*h):int(h - (cropp_img.ns[1] * 0.01 * h)):, :]
