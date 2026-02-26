@@ -77,11 +77,11 @@ class BaseCar:
                 forward_B = self.data["forward_B"]
                 print("HHHHHHH")
         except:
-            turning_offset = 25
+            turning_offset = 0
             forward_A = 0
             forward_B = 0
             print("HHHHHHH")
-        turning_offset = 25
+        turning_offset = 35
         print(turning_offset)
         # components
         self.__back_wheels = BackWheels(forward_A=forward_A, forward_B=forward_B)
@@ -335,4 +335,6 @@ class BaseCar:
 
 if __name__ == "__main__":
     car = BaseCar()
-    car.run_test_drive_1()
+    car.steering_angle = 90
+    car.steering_angle = 90
+    #car.run_test_drive_1()

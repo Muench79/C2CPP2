@@ -80,7 +80,12 @@ def generate_stream(cam):
         filtered = cv2.inRange(hsv, hsv_range.lowerbound, hsv_range.upperbound)
         #filtered = cv2.inRange(hsv, np.array([90, 0, 0]), np.array([120, 255, 255]))
         h, w = filtered.shape
-        int(h - (cropp_img.ns[1] * 0.01 * h))
+        
+        offset = 20
+        #print(filtered.shape)
+        #print('jhjjhhdjfhguhr', cropp_img.ns[0]*0.1)
+        #print("Was kommt hier raus?", cropp_img.ns)
+        #int(h - (cropp_img.ns[1] * 0.01 * h))
         #resized = resized[int(cropp_img.ns[0]*0.01*h):int(h - (cropp_img.ns[1] * 0.01 * h)), :]
         resized = resized[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h), int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
         #cropped = filtered[int(cropp_img.ns[0]*0.01*h):int(h - (cropp_img.ns[1] * 0.01 * h)):, :]
@@ -103,8 +108,60 @@ def generate_stream(cam):
                     cv2.line(resized, (x1, y1), (x2, y2), (0, 255, 255), 2)
                 #print(int(winkel(x1,y1,x2,y2)))
                 #print(winkel(1,1,1,10))
-            #print(lines)
-        _, frame_as_jpeg = cv2.imencode(".jpeg", resized)
+            if len(linien_rechts_sortiert) > 1 and len(linien_links_sortiert) > 1:
+                angle.line_inner_1(*linien_links[-1])
+                angle.line_inner_2(*linien_rechts[0])
+                angle.line_outer_1(*linien_links[0])
+                angle.line_outer_2(*linien_rechts[-1])
+                #car.steering_angle = angle.result[0]
+        
+        row = cropped[messsoffset]
+        white_pixels = np.where(row == 255)[0]
+        clusters = []
+        if len(white_pixels) > 0:
+            start = white_pixels[0]
+            prev = white_pixels[0]
+
+            for x in white_pixels[1:]:
+                if x == prev + 1:
+                    prev = x
+                else:
+                    clusters.append((start, prev))
+                    start = x
+                    prev = x
+            clusters.append((start, prev))
+
+        if len(clusters) == 2:
+            x_left_outer = clusters[0][0]
+            x_left_inner = clusters[0][1]
+            x_right_inner = clusters[1][0]
+            x_right_outer = clusters[1][1]
+
+            distance_outer = x_right_outer - x_left_outer
+            distance_inner = x_right_inner - x_left_inner
+            
+            center_outer = int(x_left_outer + distance_outer / 2)
+            center_inner = int(x_left_inner + distance_inner / 2)
+
+            diff = abs(center_inner - int(w/2))
+            
+                     # Winkel in Radiant
+            grad = int(math.degrees(math.atan2(offset, diff)) )
+            if int(w/2) > center_inner:
+                car.steering_angle = grad
+                print(diff, offset, grad)# + (clusters[1][1] - clusters[0][0])))
+            else:
+                car.steering_angle = 180 - grad
+                print(diff, offset, 180 - grad)
+        cropped_rgb = cv2.cvtColor(cropped, cv2.COLOR_GRAY2RGB)
+        cv2.line(cropped_rgb, (0, messsoffset), (w, messsoffset), (0, 0, 255), 3)
+        #print('Result',angle.result[1])
+        
+        if len(clusters) == 2:
+            cv2.line(cropped_rgb, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
+        #cv2.line(cropped_rgb, (int(angle.result[1]), 0), (int(angle.result[1]), h), (0, 0, 255), 3)
+        cv2.line(cropped_rgb, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)
+        _, frame_as_jpeg = cv2.imencode(".jpeg", cropped_rgb)
 
         frame_in_bytes = frame_as_jpeg.tobytes()
 
