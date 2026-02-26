@@ -70,7 +70,8 @@ def winkel(w, x1, y1, x2, y2):
         theta = math.atan2(dy, dx)          # Winkel in Radiant
         wl = math.degrees(theta)          
     return wr, wl, grad
-
+#h, w = resized.shape[:2]
+#mid = w // 2
 hsv_range = HSVRange()
 cropp_img = Cropp()
 

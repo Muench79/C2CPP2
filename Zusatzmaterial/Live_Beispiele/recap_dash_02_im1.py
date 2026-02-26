@@ -197,24 +197,28 @@ def generate_stream(cam):
         frame = cam.get_frame()
         resized = cv2.resize(frame, None, fx=0.5, fy=0.5)
         hsv = cv2.cvtColor(resized, cv2.COLOR_BGR2HSV)
-        
+        #print(hsv_range.lowerbound, hsv_range.upperbound, type(hsv_range.lowerbound), type(hsv_range.upperbound))
         filtered = cv2.inRange(hsv, hsv_range.lowerbound, hsv_range.upperbound)
+        # In Range Funtion erzeugt schwarz weiß Bild
         #filtered = cv2.inRange(hsv, np.array([90, 0, 0]), np.array([120, 255, 255]))
         h, w = filtered.shape
         
         #print(filtered.shape)
         #print('jhjjhhdjfhguhr', cropp_img.ns[0]*0.1)
         #print("Was kommt hier raus?", cropp_img.ns)
-
-        int(h - (cropp_img.ns[1] * 0.01 * h))
+        #int(h - (cropp_img.ns[1] * 0.01 * h))
         #resized = resized[int(cropp_img.ns[0]*0.01*h):int(h - (cropp_img.ns[1] * 0.01 * h)), :]
         resized = resized[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h), int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
         messsoffset = resized.shape[0] - 50
+        #messoffset Horizontle Line 
         
 
         #cropped = filtered[int(cropp_img.ns[0]*0.01*h):int(h - (cropp_img.ns[1] * 0.01 * h)):, :]
         cropped = filtered[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h), int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
-        
+        #Bild seitlich zsammen schneidenf
+        #print('Cropped', cropped.shape)
+        # resized = resized[int(0.3*h):int(0.8*h), :]
+        # cropped = filtered[int(0.3*h):int(0.8*h):, :]
         h, w, c = resized.shape
         angle.screen_center(int(w/2))
         angle.measuring_offset(50)
