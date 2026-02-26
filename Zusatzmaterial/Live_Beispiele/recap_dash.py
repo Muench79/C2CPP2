@@ -198,6 +198,8 @@ def unterseite_test():
 
 
 def generate_stream(cam):
+    global cropped_rgb
+    kp = 1.1
     while True:
 
         #car.drive2(20)
@@ -214,7 +216,7 @@ def generate_stream(cam):
         #filtered = cv2.inRange(hsv, np.array([90, 0, 0]), np.array([120, 255, 255]))
         h, w = filtered.shape
         
-        offset = 20
+        offset = 50
         #print(filtered.shape)
         #print('jhjjhhdjfhguhr', cropp_img.ns[0]*0.1)
         #print("Was kommt hier raus?", cropp_img.ns)
@@ -290,32 +292,65 @@ def generate_stream(cam):
             x_left_inner = clusters[0][1]
             x_right_inner = clusters[1][0]
             x_right_outer = clusters[1][1]
-
+            
             distance_outer = x_right_outer - x_left_outer
             distance_inner = x_right_inner - x_left_inner
             
             center_outer = int(x_left_outer + distance_outer / 2)
-            center_inner = int(x_left_inner + distance_inner / 2)
+            center_inner = int(x_left_inner + distance_inner / 2) 
 
-            diff = abs(center_inner - int(w/2))
-            
-                     # Winkel in Radiant
-            grad = int(math.degrees(math.atan2(offset, diff)) )
-            if int(w/2) > center_inner:
-                car.steering_angle = grad
-                print(diff, offset, grad)# + (clusters[1][1] - clusters[0][0])))
+            diff = center_inner - int(w/2)
+
+            if diff > 0:
+                car.steering_angle = 90 + kp * car.steering_angle
+            elif diff == 0:
+                car.steering_angle = 90
             else:
-                car.steering_angle = 180 - grad
-                print(diff, offset, 180 - grad)
+                car.steering_angle = 90 - kp * car.steering_angle
+            print(car.steering_angle)
+        else:
+            pass
+            #car.drive2(0)
+
+        #              # Winkel in Radiant
+        #     grad = int(math.degrees(math.atan2(offset, diff)) )
+        #     if int(w/2) > center_inner:
+        #         car.steering_angle = grad
+        #         print('Clusters:', clusters)
+        #         print(diff, offset, grad , car.steering_angle)# + (clusters[1][1] - clusters[0][0])))
+        #     else:
+        #         car.steering_angle = 180 - grad
+        #         print('Clusters:', clusters)
+        #         print(diff, offset, 180 - grad, car.steering_angle)
+        # else:
+        #     if len(clusters) == 1:
+        #         x_1_line = clusters[0][0]
+        #         x_2_line = clusters[0][1]
+        #         print(clusters)
+        #         if x_1_line > int(w/2) or x_2_line > int(w/2):
+        #             print('Größer ')
+        #             distance_center = x_1_line - 100
+        #         else:
+        #             print('Kleiner ')
+        #             distance_center = x_1_line + 100
+        #         diff = abs(int(w/2) - distance_center)
+        #         print('Nur eine Linie',clusters, diff, distance_center)
+        #         car.drive2(0)
+        #     else:
+        #         car.drive2(0)
+    
         cropped_rgb = cv2.cvtColor(cropped, cv2.COLOR_GRAY2RGB)
         cv2.line(cropped_rgb, (0, messsoffset), (w, messsoffset), (0, 0, 255), 3)
+        cv2.line(resized, (0, messsoffset), (w, messsoffset), (0, 0, 255), 3)
         #print('Result',angle.result[1])
         
         if len(clusters) == 2:
             cv2.line(cropped_rgb, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
+            cv2.line(resized, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
         #cv2.line(cropped_rgb, (int(angle.result[1]), 0), (int(angle.result[1]), h), (0, 0, 255), 3)
         cv2.line(cropped_rgb, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)
-        _, frame_as_jpeg = cv2.imencode(".jpeg", cropped_rgb)
+        cv2.line(resized, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)
+        _, frame_as_jpeg = cv2.imencode(".jpeg", resized)
 
         frame_in_bytes = frame_as_jpeg.tobytes()
 
@@ -334,12 +369,33 @@ def generate_stream(cam):
         #x=((100-y1)*(x2-x1)/(y2-y1))+x1
         yield frame_as_string
 
+def generate_stream_2():
+    global cropped_rgb
+
+    while True:
+        # prüfen, ob die Variable existiert
+        if "cropped_rgb" not in globals():
+            cropped_rgb = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        # Frame encodieren
+        _, frame_as_jpeg = cv2.imencode(".jpeg", cropped_rgb)
+        frame_in_bytes = frame_as_jpeg.tobytes()
+
+        frame_as_string = (
+            b'--frame\r\n'
+            b'Content-Type: image/jpeg\r\n\r\n' + frame_in_bytes + b'\r\n\r\n'
+        )
+
+        yield frame_as_string
 
 @server.route("/video_stream")
 def video_stream():
+    #print(Response(generate_stream(cam), mimetype='multipart/x-mixed-replace; boundary=frame'))
     return Response(generate_stream(cam), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-
+@server.route("/video_stream_2")
+def video_stream_2():
+    return Response(generate_stream_2(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 app.layout = dbc.Container([
     dbc.Row([
@@ -347,6 +403,10 @@ app.layout = dbc.Container([
             html.H1("Hallo Projektphase"),
             html.P("Test", id="test"),
             html.Div(html.Img(src="/video_stream"))
+        ]),
+        dbc.Col([
+            html.P("Test", id="test_2"),
+            html.Div(html.Img(src="/video_stream_2"))
         ]),
         dbc.Col([
             html.P('H'),
