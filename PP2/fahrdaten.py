@@ -154,15 +154,17 @@ class Cropp:
 
 
 try:
-    with open('config.json', 'r') as f:
+    with open('./config.json', 'r') as f:
         data = json.load(f)
         turning_offset = data['turning_offset']
         forward_A = data['forward_A']
         forward_B = data['forward_B']
 
 except Exception as e:
+    print("hier ist ein Fehler", e)
     hsv_range = HSVRange([80,96,0], [114,255,255])
-    cropp_img = Cropp()
+    
+cropp_img = Cropp()
 
 
 
