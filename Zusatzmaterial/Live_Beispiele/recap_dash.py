@@ -10,6 +10,7 @@ import json
 import math
 from basecar import BaseCar
 import os
+import time
 
 os.system('sudo iw dev wlan0 set power_save off')
 car = BaseCar()
@@ -195,10 +196,10 @@ def unterseite_test():
     return "Hier ist die zweite Seite"
 
 
-
+last_time = 0
 
 def generate_stream(cam):
-    global cropped_rgb
+    global cropped_rgb, last_time
     kp = 1.1
     while True:
 
@@ -286,12 +287,42 @@ def generate_stream(cam):
                     start = x
                     prev = x
             clusters.append((start, prev))
-
+        
+        
+        #print(clusters, last_time)
         if len(clusters) == 2:
-            x_left_outer = clusters[0][0]
-            x_left_inner = clusters[0][1]
-            x_right_inner = clusters[1][0]
-            x_right_outer = clusters[1][1]
+            if True: #last_time + 0.05 < time.time():
+                x_left_outer = clusters[0][0]
+                x_left_inner = clusters[0][1]
+                x_right_inner = clusters[1][0]
+                x_right_outer = clusters[1][1]
+                
+                distance_outer = x_right_outer - x_left_outer
+                distance_inner = x_right_inner - x_left_inner
+                
+                center_outer = int(x_left_outer + distance_outer / 2)
+                center_inner = int(x_left_inner + distance_inner / 2) 
+
+                diff = abs(center_inner - int(w/2))
+
+                grad = int(math.degrees(math.atan2(offset, diff)) )
+                if int(w/2) > center_inner:
+                    car.steering_angle = grad
+                    print('Clusters:', clusters)
+                    print('Links:',diff, offset, grad, car.steering_angle)# + (clusters[1][1] - clusters[0][0])))
+                else:
+                    car.steering_angle = 180 - grad
+                    print('Clusters:', clusters)
+                    print('Rechts:',diff, offset, grad, car.steering_angle)
+        else:
+            
+            x_1 = clusters[0][0]
+            x_2 = clusters[0][1]
+            
+            if int(w/2) > x_1:
+                # Links
+                line_offset = x_2 + 10
+                
             
             distance_outer = x_right_outer - x_left_outer
             distance_inner = x_right_inner - x_left_inner
@@ -299,17 +330,28 @@ def generate_stream(cam):
             center_outer = int(x_left_outer + distance_outer / 2)
             center_inner = int(x_left_inner + distance_inner / 2) 
 
-            diff = center_inner - int(w/2)
+            diff = abs(center_inner - int(w/2))
 
-            if diff > 0:
-                car.steering_angle = 90 + kp * car.steering_angle
-            elif diff == 0:
-                car.steering_angle = 90
+            grad = int(math.degrees(math.atan2(offset, diff)) )
+            if int(w/2) > center_inner:
+                car.steering_angle = grad
+                print('Clusters:', clusters)
+                print('Links:',diff, offset, grad, car.steering_angle)# + (clusters[1][1] - clusters[0][0])))
             else:
-                car.steering_angle = 90 - kp * car.steering_angle
-            print(car.steering_angle)
-        else:
-            pass
+                car.steering_angle = 180 - grad
+                print('Clusters:', clusters)
+                print('Rechts:',diff, offset, grad, car.steering_angle)
+                # if diff > 0:
+                #     car.steering_angle +=  1
+                # elif diff == 0:
+                #     car.steering_angle = 90
+                # else:
+                #     car.steering_angle -= 1
+                # print(car.steering_angle, time.time() - last_time)
+                # last_time = time.time()
+        # else:
+        #     pass
+        #     last_time = time.time()
             #car.drive2(0)
 
         #              # Winkel in Radiant
