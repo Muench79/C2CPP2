@@ -163,7 +163,7 @@ try:
 
 except Exception as e:
     hsv_range = HSVRange([80,96,0], [114,255,255])
-    cropp_img = Cropp()
+cropp_img = Cropp()
 
 
 
@@ -337,7 +337,7 @@ def generate_stream(cam):
                 x_1 = clusters[0][0]
                 x_2 = clusters[0][1]
                 
-                if int(w/2) > x_1 and not rechts:
+                if (int(w/2) > x_1 or links)  and not rechts:
                     #Links
                     links = True
                     diff = ((int(w/2) - line_offset) - x_1)
@@ -352,7 +352,7 @@ def generate_stream(cam):
                     car.steering_angle = grad
                     print('nur rechte linie:', diff, grad)
                 else:
-                    print(f'Stop\nlinks: {links}, rechts: {rechts},\nCusters: {clusters}'  )
+                    print(f'Stop\nlinks: {links}, rechts: {rechts},\nCusters: {clusters}\n {grad} \n {car.steering_angle}'  )
                     car.drive2(0)
             
             #print(diff)
