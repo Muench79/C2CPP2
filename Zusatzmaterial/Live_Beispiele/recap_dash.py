@@ -201,6 +201,8 @@ last_time = 0
 def generate_stream(cam):
     global cropped_rgb, last_time
     kp = 1.1
+    rechts = False
+    links = False
     while True:
 
         #car.drive2(20)
@@ -288,10 +290,23 @@ def generate_stream(cam):
                     prev = x
             clusters.append((start, prev))
         
+        if len(clusters) == 1:
+            if clusters[0][0] + 5 > clusters[0][1]:
+                clusters = []
+        if len(clusters) == 2:
+            if clusters[0][0] + 5 > clusters[0][1] or \
+               clusters[1][0] + 5 > clusters[1][1] or \
+               clusters[0][1] + 50 > clusters[1][0]:
+                clusters = []
         
         #print(clusters, last_time)
         if len(clusters) == 2:
+            
+            print('Clusters:', clusters)
             if True: #last_time + 0.05 < time.time():
+                rechts = False
+                links = False
+                
                 x_left_outer = clusters[0][0]
                 x_left_inner = clusters[0][1]
                 x_right_inner = clusters[1][0]
@@ -303,7 +318,7 @@ def generate_stream(cam):
                 center_outer = int(x_left_outer + distance_outer / 2)
                 center_inner = int(x_left_inner + distance_inner / 2) 
 
-                diff = abs(center_inner - int(w/2))
+                diff = int(w/2) - center_inner
 
                 grad = int(math.degrees(math.atan2(offset, diff)) )
                 if int(w/2) > center_inner:
@@ -311,36 +326,55 @@ def generate_stream(cam):
                     print('Clusters:', clusters)
                     print('Links:',diff, offset, grad, car.steering_angle)# + (clusters[1][1] - clusters[0][0])))
                 else:
-                    car.steering_angle = 180 - grad
+                    car.steering_angle = grad
                     print('Clusters:', clusters)
                     print('Rechts:',diff, offset, grad, car.steering_angle)
-        else:
-            
-            x_1 = clusters[0][0]
-            x_2 = clusters[0][1]
-            
-            if int(w/2) > x_1:
-                # Links
-                line_offset = x_2 + 10
                 
-            
-            distance_outer = x_right_outer - x_left_outer
-            distance_inner = x_right_inner - x_left_inner
-            
-            center_outer = int(x_left_outer + distance_outer / 2)
-            center_inner = int(x_left_inner + distance_inner / 2) 
+        else:
+            if clusters:
+                line_offset = 100
 
-            diff = abs(center_inner - int(w/2))
+                x_1 = clusters[0][0]
+                x_2 = clusters[0][1]
+                
+                if int(w/2) > x_1 and not rechts:
+                    #Links
+                    links = True
+                    diff = ((int(w/2) - line_offset) - x_1)
+                    grad = int(math.degrees(math.atan2(offset, diff)))
+                    car.steering_angle = grad
+                    print('nur linke linie:', diff, grad)
+                elif not links:
+                    #Rechts
+                    rechts = True
+                    diff = ((int(w/2) + line_offset) - x_1)
+                    grad = int(math.degrees(math.atan2(offset, diff)))
+                    car.steering_angle = grad
+                    print('nur rechte linie:', diff, grad)
+                else:
+                    print(f'Stop\nlinks: {links}, rechts: {rechts},\nCusters: {clusters}'  )
+                    car.drive2(0)
+            
+            #print(diff)
 
-            grad = int(math.degrees(math.atan2(offset, diff)) )
-            if int(w/2) > center_inner:
-                car.steering_angle = grad
-                print('Clusters:', clusters)
-                print('Links:',diff, offset, grad, car.steering_angle)# + (clusters[1][1] - clusters[0][0])))
-            else:
-                car.steering_angle = 180 - grad
-                print('Clusters:', clusters)
-                print('Rechts:',diff, offset, grad, car.steering_angle)
+            
+            # distance_outer = x_right_outer - x_left_outer
+            # distance_inner = x_right_inner - x_left_inner
+            
+            # center_outer = int(x_left_outer + distance_outer / 2)
+            # center_inner = int(x_left_inner + distance_inner / 2) 
+
+            # diff = abs(center_inner - int(w/2))
+
+            # grad = int(math.degrees(math.atan2(offset, diff)) )
+            # if int(w/2) > center_inner:
+            #     car.steering_angle = grad
+            #     print('Clusters:', clusters)
+            #     print('Links:',diff, offset, grad, car.steering_angle)# + (clusters[1][1] - clusters[0][0])))
+            # else:
+            #     car.steering_angle = 180 - grad
+            #     print('Clusters:', clusters)
+            #     print('Rechts:',diff, offset, grad, car.steering_angle)
                 # if diff > 0:
                 #     car.steering_angle +=  1
                 # elif diff == 0:
@@ -387,8 +421,9 @@ def generate_stream(cam):
         #print('Result',angle.result[1])
         
         if len(clusters) == 2:
-            cv2.line(cropped_rgb, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
-            cv2.line(resized, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
+            pass
+            # cv2.line(cropped_rgb, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
+            # cv2.line(resized, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
         #cv2.line(cropped_rgb, (int(angle.result[1]), 0), (int(angle.result[1]), h), (0, 0, 255), 3)
         cv2.line(cropped_rgb, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)
         cv2.line(resized, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)
