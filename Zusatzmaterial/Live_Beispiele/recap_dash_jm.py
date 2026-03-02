@@ -17,18 +17,62 @@ import requests
 from trackdetection import TrackDetection
 import uuid
 from datetime import datetime
-
-# Name der Konfigurationsdatei
-CONFIG_FILE_NAME = 'config.json'
+import logging
 
 # Pfad ermitteln
 PATH = os.path.join(os.path.split(os.path.abspath(__file__))[0], '')
+
+# Name der Konfigurationsdatei
+CONFIG_FILE_NAME = 'config.json'
 
 # Pfad für den Zugriff auf die Konfigurationsdatei
 CONFIG_FILE_PATH = PATH + CONFIG_FILE_NAME       
 
 # WLAN power-save deaktivieren
 os.system('sudo iw dev wlan0 set power_save off')
+
+# create logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# create log handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+
+# create format handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(formatter)
+console_handler.setLevel(logging.DEBUG)
+
+# 
+
+file_handler = logging.FileHandler(os.path.join(PATH, 'log.log'), mode="a", encoding="utf-8")
+file_handler.setFormatter(formatter)
+file_handler.setLevel(logging.DEBUG)
+
+
+# add handler
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
+
+
+def log_message(level, message, **kwargs):
+    # Format and generate log message
+    param_str = ' | '.join(f'{key}={value}' for key, value in kwargs.items())
+    full_message = f'{message} | {param_str}' if param_str else message
+
+    if level == 'DEBUG':
+        logger.debug(full_message)
+    elif level == 'INFO':
+        logger.info(full_message)
+    elif level == 'WARNING':
+        logger.warning(full_message)
+    elif level == 'ERROR':
+        logger.error(full_message)
+    elif level == 'CRITICAL':
+        logger.critical(full_message)
+    else:
+        logger.info(f'Unbekannter Loglevel \'{level}\': {full_message}')
 
 # Auto Objekt erstellen
 car = BaseCar()
@@ -129,9 +173,9 @@ def generate_stream(cam):
                 diff = center_image - center_inner
                 # Lenkwinkel berechnen
                 grad = int(math.degrees(math.atan2(offset, diff)) )
-                #print('Beide linien erkannt')
                 # Lenkwinkel setzen
-                car.steering_angle = grad               
+                car.steering_angle = grad
+                log_message('DEBUG', 'Beide linien erkannt', offset=offset, diff=diff, grad=grad, steering_angle=car.steering_angle, run_name=run_name, run_id=run_id, image_counter=image_counter)      
         elif track_detection.count == 1:
             # Nur eine Spur erkannt
             # Position (1 = links, 2 = recht) ermitteln
@@ -145,7 +189,7 @@ def generate_stream(cam):
                 grad = int(math.degrees(math.atan2(offset, diff)))
                 # Lenkwinkel setzen
                 car.steering_angle = grad
-                #print('nur linke linie:', diff, grad)
+                log_message('DEBUG', 'Nur linke Linie erkannt', offset=offset, diff=diff, grad=grad, steering_angle=car.steering_angle, run_name=run_name, run_id=run_id, image_counter=image_counter)
             elif (position == 2 or pos_right) and not pos_left:
                 # Rechte Spur
                 pos_right = True
@@ -155,7 +199,9 @@ def generate_stream(cam):
                 grad = int(math.degrees(math.atan2(offset, diff)))
                 # Lenkwinkel setzen
                 car.steering_angle = grad
-                #print('nur rechte linie:', diff, grad)
+                log_message('DEBUG', 'Nur rechte Linie erkannt', offset=offset, diff=diff, grad=grad, steering_angle=car.steering_angle, run_name=run_name, run_id=run_id, image_counter=image_counter)
+        else:
+            log_message('DEBUG', 'Keine Linien erkannt', offset=offset, steering_angle=car.steering_angle, run_name=run_name, run_id=run_id, image_counter=image_counter)
         if stop_drive:
                     car.drive2(0)
         if car.speed > 0:
@@ -323,4 +369,5 @@ if __name__ == "__main__":
     except:
         car.drive2(0)
     car.drive2(0)
+    logging.shutdown()
 # sudo shutdown -h now

@@ -31,3 +31,4 @@ test_to_be_deleted.ipynb
 
 *.png
 *.jpg
+*.log
