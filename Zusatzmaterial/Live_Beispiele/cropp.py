@@ -63,7 +63,6 @@ class Cropp:
         Returns:
             list[int]: Bereich als [min, max].
         """
-
         return self.__ns
     
     @property
@@ -74,7 +73,6 @@ class Cropp:
         Returns:
             list[int]: Bereich als [min, max].
         """
-
         return self.__we
 
 if __name__ == '__main__':

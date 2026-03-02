@@ -15,6 +15,8 @@ from hsvrange import HSVRange
 from cropp import Cropp
 import requests
 from trackdetection import TrackDetection
+import uuid
+from datetime import datetime
 
 # Name der Konfigurationsdatei
 CONFIG_FILE_NAME = 'config.json'
@@ -33,6 +35,11 @@ car = BaseCar()
 car.steering_angle = 90 # Lenkung gerade
 car.drive2(0) # Geschwindigkeit 0
 
+# Daten für Dateiaufzeichnung
+run_name = "SRC"
+run_id = str(uuid.uuid4())[:8]
+image_counter = 1
+
 # Konfigurationsdaten einlesen
 try:
     with open(CONFIG_FILE_PATH, 'r', encoding="utf-8") as f:
@@ -49,7 +56,8 @@ try:
     cropp_img.set_ns(data['Cropp']['ns'])
     cropp_img.set_we(data['Cropp']['we'])
     # Offset
-    offset = data['Offset']['']
+    offset = data['Offset']
+    offset_line = data['Offset_Line']
 except:
     # HSV Filter erstellen
     hsv_range = HSVRange((100, 150, 50), (140, 255, 255))
@@ -59,6 +67,9 @@ except:
     cropp_img.set_we(data['Cropp']['we'])
     # Offset
     offset = 50
+    offset_line = 1000
+
+
 
 # Dash Stylesheet setzen
 external_stylesheets = [dbc.themes.DARKLY]
@@ -71,7 +82,7 @@ cam = Camera()
 app = Dash(external_stylesheets=external_stylesheets, server=server)
 
 def generate_stream(cam):
-    global cropped_rgb, offset
+    global cropped_rgb, offset, offset_line, run_name, run_id, image_counter
     track_detection = TrackDetection(cluster_size=5, cluster_distance=50)
     pos_left = False
     pos_right = False
@@ -97,48 +108,66 @@ def generate_stream(cam):
         
         # Größe des Bildes ermitteln
         h, w, c = resized.shape
-        track_detection.center(int(w/2))
-        #row = cropped[measuring_offset]
+        # Bildmitte berechnen
+        center_image = int(w/2)
+        # Spurerkennung
+        track_detection.center(center_image)
         track_detection.row(cropped[measuring_offset])
         
-        
         if track_detection.count == 2:
-
+                # Zwei Spuren erkannt
+                # Spurpositionen löschen
                 pos_left = False
                 pos_right = False
+                # Mittelpunkt der Spuren berechnen
                 center_inner = int(track_detection.x_left_inner + track_detection.distance_inner / 2) 
-
-                diff = int(w/2) - center_inner
-
+                # Abweichung bzw. Differenz ermitteln
+                diff = center_image - center_inner
+                # Lenkwinkel berechnen
                 grad = int(math.degrees(math.atan2(offset, diff)) )
                 print('Beide linien erkannt')
+                # Lenkwinkel setzen
                 car.steering_angle = grad               
         elif track_detection.count == 1:
-            
+            # Nur eine Spur erkannt
+            # Position (1 = links, 2 = recht) ermitteln
             position = track_detection.position
-            line_offset = 100
-            print(position)
             if (position == 1 or pos_left) and not pos_right:
+                # Linke Spur
                 pos_left = True
-                diff = ((int(w/2) - line_offset) - track_detection.x_1)
+                # Abweichung berechnen
+                diff = ((center_image - offset_line) - track_detection.x_1)
+                # Lenkwinkel berechen
                 grad = int(math.degrees(math.atan2(offset, diff)))
+                # Lenkwinkel setzen
                 car.steering_angle = grad
                 print('nur linke linie:', diff, grad)
             elif (position == 2 or pos_right) and not pos_left:
+                # Rechte Spur
                 pos_right = True
-                    #Rechts
-                    
-                diff = ((int(w/2) + line_offset) - track_detection.x_1)
+                # Abweichung berechnen
+                diff = ((center_image + offset_line) - track_detection.x_1)
+                # Lenkwinkel berechen
                 grad = int(math.degrees(math.atan2(offset, diff)))
+                # Lenkwinkel setzen
                 car.steering_angle = grad
                 print('nur rechte linie:', diff, grad)
-
-    
+        
+        current_time = datetime.now().strftime("%Y%m%d_%H-%M-%S")
+        filename = "IMG_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.jpg".format(
+                run_name, run_id, current_time, image_counter, car.speed, car.steering_angle)
+        cv2.imwrite(os.path.join(PATH, 'img', filename), resized)
+        filename = "IMG_RAW_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.jpg".format(
+                run_name, run_id, current_time, image_counter, car.speed, car.steering_angle)
+        cv2.imwrite(os.path.join(PATH, 'img', filename), frame)
+        image_counter += 1
+        
         cropped_rgb = cv2.cvtColor(cropped, cv2.COLOR_GRAY2RGB)
         cv2.line(cropped_rgb, (0, measuring_offset), (w, measuring_offset), (0, 0, 255), 3)
         cv2.line(resized, (0, measuring_offset), (w, measuring_offset), (0, 0, 255), 3)
         #print('Result',angle.result[1])
         
+
         if track_detection.count == 2:
             cv2.line(cropped_rgb, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
             cv2.line(resized, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
@@ -195,13 +224,13 @@ app.layout = dbc.Container([
             html.P('H'),
             dcc.RangeSlider(id="slider-h", min=0, max=180, value= [hsv_range.lb[0].item(), hsv_range.ub[0].item()]),
             html.P('S'),
-            dcc.RangeSlider(id="slider-s", min=0, max=255, value=[96, 255]),
+            dcc.RangeSlider(id="slider-s", min=0, max=255, value=[hsv_range.lb[1].item(), hsv_range.ub[1].item()]),
             html.P('V'),
-            dcc.RangeSlider(id="slider-v", min=0, max=255, value=[0,255]),
+            dcc.RangeSlider(id="slider-v", min=0, max=255, value=[hsv_range.lb[2].item(), hsv_range.ub[2].item()]),
             html.P('Oben, Unten'),
-            dcc.RangeSlider(id="slider-ns", min=0, max=100, value=[35, 85]),
+            dcc.RangeSlider(id="slider-ns", min=0, max=100, value=cropp_img.ns),
             html.P('Links, Rechts'),
-            dcc.RangeSlider(id="slider-we", min=0, max=100),
+            dcc.RangeSlider(id="slider-we", min=0, max=100, value=cropp_img.we),
             html.P('Geschwindigkeit'),
             dcc.Slider(id="slider-speed", min=0, max=50, value=0),
         ],
@@ -221,19 +250,11 @@ app.layout = dbc.Container([
     Input("slider-speed", "value"),
 )
 def update_p(value_h, value_s, value_v, value_ns, value_we, value_speed):
-    try:
-        hsv_range.lower_bound([value_h[0], value_s[0], value_v[0]])
-        hsv_range.upper_bound([value_h[1], value_s[1], value_v[1]])
-    except:
-        pass
-    if not value_ns:
-        cropp_img.set_ns([0,100])
-    else:
-        cropp_img.set_ns(value_ns)
-    if not value_we:
-        cropp_img.set_we([0,100])
-    else:
-        cropp_img.set_we(value_we)
+    hsv_range.lower_bound([value_h[0], value_s[0], value_v[0]])
+    hsv_range.upper_bound([value_h[1], value_s[1], value_v[1]])
+    cropp_img.set_ns(value_ns)
+    cropp_img.set_we(value_we)
+
     print(value_speed)
     car.drive2(int(value_speed))
     #cropp_img.set_ns(value_ns)
@@ -244,5 +265,9 @@ def update_p(value_h, value_s, value_v, value_ns, value_we, value_speed):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=False)
+    try:
+        app.run(host="0.0.0.0", debug=False)
+    except:
+        car.drive2(0)
+    car.drive2(0)
 # sudo shutdown -h now
