@@ -50,5 +50,7 @@ winkelkorr = 90-winkel1
 print("Winkel", r , winkel1)
 
 '''
-
+LSB (Axis 0): Lenkwinkel
+RT (Axis 4): Vorwärts
+LT (Axis 5): Rückwärts
 '''
