@@ -164,9 +164,19 @@ try:
 except Exception as e:
     hsv_range = HSVRange([80,96,0], [114,255,255])
 cropp_img = Cropp()
+#sudo shutdown -h now
+cropp_img.set_ns([10,10])
+cropp_img.set_we([1,2])
+data = {}
+#with open(PATH + 'c1.json', 'w') as f:
+#    data['Cropp'] = {'ns' : cropp_img.ns,
+#                     'we' : cropp_img.we}
+#    json.dump(data, f, indent=4)
+        #turning_offset = data['turning_offset']
+        #forward_A = data['forward_A']
+        #forward_B = data['forward_B']
 
-
-
+#sys.exit()
 external_stylesheets = [dbc.themes.DARKLY]
 server = Flask(__name__)
 
@@ -422,8 +432,8 @@ def generate_stream(cam):
         
         if len(clusters) == 2:
             pass
-            # cv2.line(cropped_rgb, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
-            # cv2.line(resized, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
+            cv2.line(cropped_rgb, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
+            cv2.line(resized, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
         #cv2.line(cropped_rgb, (int(angle.result[1]), 0), (int(angle.result[1]), h), (0, 0, 255), 3)
         cv2.line(cropped_rgb, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)
         cv2.line(resized, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)

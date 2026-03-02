@@ -1,0 +1,248 @@
+from dash import Dash, html, dcc, Input, Output
+import dash_bootstrap_components as dbc
+from flask import Flask, Response
+from basisklassen_cam import Camera
+import cv2
+import numpy as np
+import sys
+import pprint
+import json
+import math
+from basecar import BaseCar
+import os
+import time
+from hsvrange import HSVRange
+from cropp import Cropp
+import requests
+from trackdetection import TrackDetection
+
+# Name der Konfigurationsdatei
+CONFIG_FILE_NAME = 'config.json'
+
+# Pfad ermitteln
+PATH = os.path.join(os.path.split(os.path.abspath(__file__))[0], '')
+
+# Pfad für den Zugriff auf die Konfigurationsdatei
+CONFIG_FILE_PATH = PATH + CONFIG_FILE_NAME       
+
+# WLAN power-save deaktivieren
+os.system('sudo iw dev wlan0 set power_save off')
+
+# Auto Objekt erstellen
+car = BaseCar()
+car.steering_angle = 90 # Lenkung gerade
+car.drive2(0) # Geschwindigkeit 0
+
+# Konfigurationsdaten einlesen
+try:
+    with open(CONFIG_FILE_PATH, 'r', encoding="utf-8") as f:
+        data = json.load(f)
+    # HSV Filter erstellen
+    hsv_range = HSVRange((data['HSV-Filter']['h_min'],
+                                data['HSV-Filter']['s_min'],
+                                data['HSV-Filter']['v_min']),
+                               (data['HSV-Filter']['h_max'],
+                                data['HSV-Filter']['s_max'],
+                                data['HSV-Filter']['v_max']))
+    # Zuschneideobjekt erstellen
+    cropp_img = Cropp()
+    cropp_img.set_ns(data['Cropp']['ns'])
+    cropp_img.set_we(data['Cropp']['we'])
+    # Offset
+    offset = data['Offset']['']
+except:
+    # HSV Filter erstellen
+    hsv_range = HSVRange((100, 150, 50), (140, 255, 255))
+    # Zuschneideobjekt erstellen
+    cropp_img = Cropp()
+    cropp_img.set_ns([35, 90])
+    cropp_img.set_we(data['Cropp']['we'])
+    # Offset
+    offset = 50
+
+# Dash Stylesheet setzen
+external_stylesheets = [dbc.themes.DARKLY]
+server = Flask(__name__)
+
+# Kamera initialisieren
+cam = Camera()
+
+# Dash app erzeugen
+app = Dash(external_stylesheets=external_stylesheets, server=server)
+
+def generate_stream(cam):
+    global cropped_rgb, offset
+    track_detection = TrackDetection(cluster_size=5, cluster_distance=50)
+    pos_left = False
+    pos_right = False
+    while True:
+        # Kamerabild einlesen
+        frame = cam.get_frame()
+        # Bild auf die Hälfte verkleinern
+        resized = cv2.resize(frame, None, fx=0.5, fy=0.5)
+        # HSV Bild erzeugen (BGR -> HSV)
+        hsv = cv2.cvtColor(resized, cv2.COLOR_BGR2HSV)
+        # Farbe über HSV-Filter filtern 
+        filtered = cv2.inRange(hsv, hsv_range.lowerbound, hsv_range.upperbound)
+        # Größe des Bildes ermitteln
+        h, w = filtered.shape
+        # Farbbild zuschneiden
+        resized = resized[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h),
+                          int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
+        # Gefiltertes Bild zuschneiden
+        cropped = filtered[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h),
+                           int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
+        # Messoffset berechnen (immer Bildhöhe - Offset)
+        measuring_offset = resized.shape[0] - offset
+        
+        # Größe des Bildes ermitteln
+        h, w, c = resized.shape
+        track_detection.center(int(w/2))
+        #row = cropped[measuring_offset]
+        track_detection.row(cropped[measuring_offset])
+        
+        
+        if track_detection.count == 2:
+
+                pos_left = False
+                pos_right = False
+                center_inner = int(track_detection.x_left_inner + track_detection.distance_inner / 2) 
+
+                diff = int(w/2) - center_inner
+
+                grad = int(math.degrees(math.atan2(offset, diff)) )
+                print('Beide linien erkannt')
+                car.steering_angle = grad               
+        elif track_detection.count == 1:
+            
+            position = track_detection.position
+            line_offset = 100
+            print(position)
+            if (position == 1 or pos_left) and not pos_right:
+                pos_left = True
+                diff = ((int(w/2) - line_offset) - track_detection.x_1)
+                grad = int(math.degrees(math.atan2(offset, diff)))
+                car.steering_angle = grad
+                print('nur linke linie:', diff, grad)
+            elif (position == 2 or pos_right) and not pos_left:
+                pos_right = True
+                    #Rechts
+                    
+                diff = ((int(w/2) + line_offset) - track_detection.x_1)
+                grad = int(math.degrees(math.atan2(offset, diff)))
+                car.steering_angle = grad
+                print('nur rechte linie:', diff, grad)
+
+    
+        cropped_rgb = cv2.cvtColor(cropped, cv2.COLOR_GRAY2RGB)
+        cv2.line(cropped_rgb, (0, measuring_offset), (w, measuring_offset), (0, 0, 255), 3)
+        cv2.line(resized, (0, measuring_offset), (w, measuring_offset), (0, 0, 255), 3)
+        #print('Result',angle.result[1])
+        
+        if track_detection.count == 2:
+            cv2.line(cropped_rgb, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
+            cv2.line(resized, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
+        cv2.line(cropped_rgb, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)
+        cv2.line(resized, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)
+        _, frame_as_jpeg = cv2.imencode(".jpeg", resized)
+
+        frame_in_bytes = frame_as_jpeg.tobytes()
+
+        frame_as_string = (b'--frame\r\n'
+                b'Content-Type: image/jpeg\r\n\r\n' + frame_in_bytes + b'\r\n\r\n')
+        yield frame_as_string
+
+def generate_stream_2():
+    global cropped_rgb
+
+    while True:
+        # prüfen, ob die Variable existiert
+        if "cropped_rgb" not in globals():
+            cropped_rgb = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        # Frame encodieren
+        _, frame_as_jpeg = cv2.imencode(".jpeg", cropped_rgb)
+        frame_in_bytes = frame_as_jpeg.tobytes()
+
+        frame_as_string = (
+            b'--frame\r\n'
+            b'Content-Type: image/jpeg\r\n\r\n' + frame_in_bytes + b'\r\n\r\n'
+        )
+
+        yield frame_as_string
+
+@server.route("/video_stream")
+def video_stream():
+    return Response(generate_stream(cam), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@server.route("/video_stream_2")
+def video_stream_2():
+    return Response(generate_stream_2(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+app.layout = dbc.Container([
+    dbc.Row([
+        dbc.Col([
+            html.H1("Hallo Projektphase"),
+            html.P("Test", id="test"),
+            html.Div(html.Img(src="/video_stream")),
+        ]),
+        dbc.Col([
+            html.P("Test", id="test_2"),
+            html.Div(html.Img(src="/video_stream_2"))
+        ]),
+        dbc.Col([
+            html.P('H'),
+            dcc.RangeSlider(id="slider-h", min=0, max=180, value= [hsv_range.lb[0].item(), hsv_range.ub[0].item()]),
+            html.P('S'),
+            dcc.RangeSlider(id="slider-s", min=0, max=255, value=[96, 255]),
+            html.P('V'),
+            dcc.RangeSlider(id="slider-v", min=0, max=255, value=[0,255]),
+            html.P('Oben, Unten'),
+            dcc.RangeSlider(id="slider-ns", min=0, max=100, value=[35, 85]),
+            html.P('Links, Rechts'),
+            dcc.RangeSlider(id="slider-we", min=0, max=100),
+            html.P('Geschwindigkeit'),
+            dcc.Slider(id="slider-speed", min=0, max=50, value=0),
+        ],
+        width=6)
+    ])
+    
+
+])
+
+@app.callback(
+    Output("test", "children"),
+    Input("slider-h", "value"),
+    Input("slider-s", "value"),
+    Input("slider-v", "value"),
+    Input("slider-ns", "value"),
+    Input("slider-we", "value"),
+    Input("slider-speed", "value"),
+)
+def update_p(value_h, value_s, value_v, value_ns, value_we, value_speed):
+    try:
+        hsv_range.lower_bound([value_h[0], value_s[0], value_v[0]])
+        hsv_range.upper_bound([value_h[1], value_s[1], value_v[1]])
+    except:
+        pass
+    if not value_ns:
+        cropp_img.set_ns([0,100])
+    else:
+        cropp_img.set_ns(value_ns)
+    if not value_we:
+        cropp_img.set_we([0,100])
+    else:
+        cropp_img.set_we(value_we)
+    print(value_speed)
+    car.drive2(int(value_speed))
+    #cropp_img.set_ns(value_ns)
+    #cropp_img.set_we(value_we)
+    #print(cropp_img.ns, cropp_img.we, 1 - cropp_img.ns[1]*0.01)
+    return_value = f"Die Einstellungen sind: {value_h}, {value_s}, {value_v}, \n{value_ns}, {value_we}"
+    return return_value
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", debug=False)
+# sudo shutdown -h now
