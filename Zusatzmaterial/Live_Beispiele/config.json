@@ -1,11 +1,4 @@
 {
-    "turning_offset": 25,
-    "forward_A": 0,
-    "forward_B": 0,
-    "preparation_time": 0,
-    "impuls_length": 0,
-    "timeout": 0,
-    "references": [],
     "HSV-Filter": {
         "h_min": 78,
         "h_max": 132,
@@ -25,5 +18,5 @@
         ]
     },
     "Offset": 50,
-    "Offset_Line": 100
+    "Offset_Line": 120
 }

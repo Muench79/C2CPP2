@@ -58,7 +58,7 @@ class TrackDetection:
                 # Cluster ist zu klein
                 self.__clusters = []
             else:
-                print(self.__center, self.__clusters[0][1])
+                #print(self.__center, self.__clusters[0][1])
                 if self.__center < self.__clusters[0][1]:
                     self.__position = 2
                 else:

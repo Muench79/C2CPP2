@@ -40,6 +40,7 @@ run_name = "SRC"
 run_id = str(uuid.uuid4())[:8]
 image_counter = 1
 
+stop_drive = False
 # Konfigurationsdaten einlesen
 try:
     with open(CONFIG_FILE_PATH, 'r', encoding="utf-8") as f:
@@ -53,6 +54,7 @@ try:
                                 data['HSV-Filter']['v_max']))
     # Zuschneideobjekt erstellen
     cropp_img = Cropp()
+    print(data['Cropp']['ns'])
     cropp_img.set_ns(data['Cropp']['ns'])
     cropp_img.set_we(data['Cropp']['we'])
     # Offset
@@ -64,10 +66,11 @@ except:
     # Zuschneideobjekt erstellen
     cropp_img = Cropp()
     cropp_img.set_ns([35, 90])
-    cropp_img.set_we(data['Cropp']['we'])
+    cropp_img.set_we([0, 100])
     # Offset
     offset = 50
     offset_line = 1000
+    data = {}
 
 
 
@@ -82,7 +85,8 @@ cam = Camera()
 app = Dash(external_stylesheets=external_stylesheets, server=server)
 
 def generate_stream(cam):
-    global cropped_rgb, offset, offset_line, run_name, run_id, image_counter
+    global cropped_rgb, offset, offset_line, run_name, run_id, image_counter, stop_drive
+    stop_drive = False
     track_detection = TrackDetection(cluster_size=5, cluster_distance=50)
     pos_left = False
     pos_right = False
@@ -125,7 +129,7 @@ def generate_stream(cam):
                 diff = center_image - center_inner
                 # Lenkwinkel berechnen
                 grad = int(math.degrees(math.atan2(offset, diff)) )
-                print('Beide linien erkannt')
+                #print('Beide linien erkannt')
                 # Lenkwinkel setzen
                 car.steering_angle = grad               
         elif track_detection.count == 1:
@@ -136,12 +140,12 @@ def generate_stream(cam):
                 # Linke Spur
                 pos_left = True
                 # Abweichung berechnen
-                diff = ((center_image - offset_line) - track_detection.x_1)
+                diff = ((center_image - offset_line) - track_detection.x_2)
                 # Lenkwinkel berechen
                 grad = int(math.degrees(math.atan2(offset, diff)))
                 # Lenkwinkel setzen
                 car.steering_angle = grad
-                print('nur linke linie:', diff, grad)
+                #print('nur linke linie:', diff, grad)
             elif (position == 2 or pos_right) and not pos_left:
                 # Rechte Spur
                 pos_right = True
@@ -151,28 +155,29 @@ def generate_stream(cam):
                 grad = int(math.degrees(math.atan2(offset, diff)))
                 # Lenkwinkel setzen
                 car.steering_angle = grad
-                print('nur rechte linie:', diff, grad)
+                #print('nur rechte linie:', diff, grad)
+        if stop_drive:
+                    car.drive2(0)
+        if car.speed > 0:
+            current_time = datetime.now().strftime("%Y%m%d_%H-%M-%S")
+            filename = "IMG_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.jpg".format(
+                    run_name, run_id, current_time, image_counter, car.speed, car.steering_angle)
+            cv2.imwrite(os.path.join(PATH, 'img', filename), resized)
+            filename = "IMG_RAW_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.jpg".format(
+                    run_name, run_id, current_time, image_counter, car.speed, car.steering_angle)
+            cv2.imwrite(os.path.join(PATH, 'img', filename), frame)
+            image_counter += 1
         
-        current_time = datetime.now().strftime("%Y%m%d_%H-%M-%S")
-        filename = "IMG_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.jpg".format(
-                run_name, run_id, current_time, image_counter, car.speed, car.steering_angle)
-        cv2.imwrite(os.path.join(PATH, 'img', filename), resized)
-        filename = "IMG_RAW_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.jpg".format(
-                run_name, run_id, current_time, image_counter, car.speed, car.steering_angle)
-        cv2.imwrite(os.path.join(PATH, 'img', filename), frame)
-        image_counter += 1
-        
-        cropped_rgb = cv2.cvtColor(cropped, cv2.COLOR_GRAY2RGB)
-        cv2.line(cropped_rgb, (0, measuring_offset), (w, measuring_offset), (0, 0, 255), 3)
-        cv2.line(resized, (0, measuring_offset), (w, measuring_offset), (0, 0, 255), 3)
+            cv2.line(cropped_rgb, (0, measuring_offset), (w, measuring_offset), (0, 0, 255), 3)
+            cv2.line(resized, (0, measuring_offset), (w, measuring_offset), (0, 0, 255), 3)
         #print('Result',angle.result[1])
-        
+        cropped_rgb = cv2.cvtColor(cropped, cv2.COLOR_GRAY2RGB)
 
         if track_detection.count == 2:
             cv2.line(cropped_rgb, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
             cv2.line(resized, (center_inner, 0), (center_inner, h), (0, 255, 255), 3)
-        cv2.line(cropped_rgb, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)
-        cv2.line(resized, (int(w/2), 0), (int(w/2), h), (255, 0, 255), 3)
+        cv2.line(cropped_rgb, (center_image, 0), (center_image, h), (255, 0, 255), 3)
+        cv2.line(resized, (center_image, 0), (center_image, h), (255, 0, 255), 3)
         _, frame_as_jpeg = cv2.imencode(".jpeg", resized)
 
         frame_in_bytes = frame_as_jpeg.tobytes()
@@ -211,7 +216,7 @@ def video_stream_2():
 
 app.layout = dbc.Container([
     dbc.Row([
-        dbc.Col([
+        dbc.Col([html.Div(id="dummy-output", style={"display": "none"}),
             html.H1("Hallo Projektphase"),
             html.P("Test", id="test"),
             html.Div(html.Img(src="/video_stream")),
@@ -234,7 +239,17 @@ app.layout = dbc.Container([
             html.P('Geschwindigkeit'),
             dcc.Slider(id="slider-speed", min=0, max=50, value=0),
         ],
-        width=6)
+        width=6),
+        dbc.Row([
+            dbc.Col([
+                dbc.Button("Stopp", id="btn_stop", color="primary")])
+                ]),
+        dbc.Row([
+            dbc.Col([
+                dbc.Button("Werte speichern", id="btn_store", color="primary")]),
+                ])
+        
+
     ])
     
 
@@ -250,18 +265,56 @@ app.layout = dbc.Container([
     Input("slider-speed", "value"),
 )
 def update_p(value_h, value_s, value_v, value_ns, value_we, value_speed):
+    global stop_drive
     hsv_range.lower_bound([value_h[0], value_s[0], value_v[0]])
     hsv_range.upper_bound([value_h[1], value_s[1], value_v[1]])
     cropp_img.set_ns(value_ns)
     cropp_img.set_we(value_we)
 
     print(value_speed)
+    if int(value_speed) > 0:
+        stop_drive = False
     car.drive2(int(value_speed))
     #cropp_img.set_ns(value_ns)
     #cropp_img.set_we(value_we)
     #print(cropp_img.ns, cropp_img.we, 1 - cropp_img.ns[1]*0.01)
     return_value = f"Die Einstellungen sind: {value_h}, {value_s}, {value_v}, \n{value_ns}, {value_we}"
     return return_value
+
+@app.callback(
+    Output('slider-speed', 'value'),
+    Input("btn_stop", "n_clicks"),
+)
+def handle_click_drive_stop(value):
+    global stop_drive
+    stop_drive = True
+    return 0
+
+@app.callback(
+    Output('dummy-output', 'children'),
+    Input("btn_store", "n_clicks"),
+    prevent_initial_call=True
+)
+def handle_click_store_values(value):
+    global hsv_range, cropp_img, offset, offset_line, data
+    with open(CONFIG_FILE_PATH, 'w', encoding="utf-8") as f:
+        # HVS-Filter
+        data['HSV-Filter'] = {'h_min' : int(hsv_range.lb[0]),
+                              'h_max' : int(hsv_range.ub[0]),
+                              's_min' : int(hsv_range.lb[1]),
+                              's_max' : int(hsv_range.ub[1]),
+                              'v_min' : int(hsv_range.lb[2]),
+                              'v_max' : int(hsv_range.ub[2])}
+        # Zuschneideobjekt
+        data['Cropp'] = {'ns' : cropp_img.ns,
+                         'we' : cropp_img.we}
+        # Offset
+        data['Offset'] = offset
+        # Lineoffset
+        data['Offset_Line'] = offset_line
+        # Daten in die Konfigurationsdatei schreiben
+        json.dump(data, f, indent=4)
+    return ""
 
 
 if __name__ == "__main__":
