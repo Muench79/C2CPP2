@@ -32,29 +32,28 @@ CONFIG_FILE_PATH = PATH + CONFIG_FILE_NAME
 os.system('sudo iw dev wlan0 set power_save off')
 
 # create logger
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
+#logging.getLogger("dash.dash").disabled = True
+
 logger.setLevel(logging.DEBUG)
 
 # create log handler
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
+console_handler.setLevel(logging.INFO)
 
-# create format handler
+# create format handler (console)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 console_handler.setFormatter(formatter)
-console_handler.setLevel(logging.DEBUG)
+console_handler.setLevel(logging.INFO)
 
-# 
-
+# create format handler (file)
 file_handler = logging.FileHandler(os.path.join(PATH, 'log.log'), mode="a", encoding="utf-8")
 file_handler.setFormatter(formatter)
 file_handler.setLevel(logging.DEBUG)
 
-
 # add handler
 logger.addHandler(console_handler)
 logger.addHandler(file_handler)
-
 
 def log_message(level, message, **kwargs):
     # Format and generate log message
@@ -127,6 +126,10 @@ cam = Camera()
 
 # Dash app erzeugen
 app = Dash(external_stylesheets=external_stylesheets, server=server)
+
+logging.getLogger("dash").setLevel(logging.WARNING)
+logging.getLogger("dash.dash").setLevel(logging.WARNING)
+logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 def generate_stream(cam):
     global cropped_rgb, offset, offset_line, run_name, run_id, image_counter, stop_drive
