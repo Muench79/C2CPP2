@@ -178,8 +178,8 @@ def generate_stream(cam):
                 output_details = interpreter.get_output_details()
                 interpreter.allocate_tensors()
                 neural_network_init = True
-            img = frame[:,:,::-1]
-            img = cv2.resize(img, IMG_SIZE)
+            #img = frame[:,:,::-1]
+            img = cv2.resize(frame, IMG_SIZE)
             
             img = np.asarray(img) / 255
             img = np.float32(img)
