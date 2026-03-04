@@ -27,12 +27,14 @@ from datetime import datetime
 from basisklassen_cam import Camera
 from basecar import BaseCar
 
+PATH = os.path.join(os.path.split(os.path.abspath(__file__))[0], '')
+
 # CREATION OF THE CAR & CAMERA
 print("-" * 30)
 print("CREATION CAR/CAMERA:")
-cfile = "config.json"
-print(" - config:", cfile)
-car = BaseCar(config=cfile)
+#cfile = "config.json"
+#print(" - config:", cfile)
+car = BaseCar()
 config_cam = dict(skip_frame=2, buffersize=1, colorspace="bgr", height=480, width=640)
 cam = Camera(**config_cam)
 cam.recording = False
@@ -191,7 +193,7 @@ tab2_content = dbc.Container(
                             html.H6("Car Class:"),
                             html.Code(str(car.__class__), id="class"),
                             html.H6("Car Config file:"),
-                            html.Code(cfile, id="cfile"),
+                            #html.Code(cfile, id="cfile"),
                             html.H6("Car Configurations:"),
                             dash_renderjson.DashRenderjson(id="input", data=car.data),
                         ]

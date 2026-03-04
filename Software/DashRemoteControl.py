@@ -20,6 +20,8 @@ from basisklassen_cam import Camera
 from basecar import BaseCar
 
 
+PATH = os.path.join(os.path.split(os.path.abspath(__file__))[0], '')
+
 car = BaseCar()
 take_image = False
 

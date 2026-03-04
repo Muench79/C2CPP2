@@ -12,7 +12,9 @@ import pandas as pd
 import time
 import json
 import uuid
+import os
 
+PATH = os.path.join(os.path.split(os.path.abspath(__file__))[0], '')
 
 class BaseCar:
     """Implements basic function of car like setting speed, steering angle, direction.
@@ -61,7 +63,7 @@ class BaseCar:
 
         pass
 
-    def __init__(self, config: str = "config.json"):
+    def __init__(self, config: str = PATH + "config.json"):
         """Constructor method. It will read the config file and set the attributes.
 
         Args:
