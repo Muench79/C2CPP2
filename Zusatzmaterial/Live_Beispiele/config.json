@@ -1,22 +1,22 @@
 {
     "HSV-Filter": {
-        "h_min": 100,
-        "h_max": 140,
-        "s_min": 150,
+        "h_min": 78,
+        "h_max": 132,
+        "s_min": 138,
         "s_max": 255,
-        "v_min": 50,
+        "v_min": 28,
         "v_max": 255
     },
     "Cropp": {
         "ns": [
             35,
-            90
+            80
         ],
         "we": [
             0,
             100
         ]
     },
-    "Offset": 50,
-    "Offset_Line": 1000
+    "Offset": 70,
+    "Offset_Line": 120
 }

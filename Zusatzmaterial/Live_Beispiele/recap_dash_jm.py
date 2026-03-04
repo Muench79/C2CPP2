@@ -173,39 +173,31 @@ def generate_stream(cam):
         #print(neural_network)
         if neural_network == True:
             if not neural_network_init:
-                print('INIT 1')
                 interpreter = tflite.Interpreter(model_path=PATH + 'live_model_tflite.tflite')
-                print('INIT 2')
                 input_details = interpreter.get_input_details()
-                print('INIT 3')
                 output_details = interpreter.get_output_details()
-                print('INIT 4')
                 interpreter.allocate_tensors()
                 neural_network_init = True
-            print('NN-Stelle 1')
-            #img = frame[:,:,::-1]
-            img = cv2.resize(frame, IMG_SIZE)
+            img = frame[:,:,::-1]
+            img = cv2.resize(img, IMG_SIZE)
             
-            print('NN-Stelle 2')
             img = np.asarray(img) / 255
-            print(img[0])
             img = np.float32(img)
-            print('NN-Stelle 3')
             img = np.expand_dims(img, axis=0)
-            print('NN-Stelle 4')
             try:
-                interpreter.set_tensor(input_details[0]['index'], img)
+               interpreter.set_tensor(input_details[0]['index'], img)
             except Exception as e:
-                print(e)
+               print(e)
             
-            print('NN-Stelle 5')
             interpreter.invoke()
-            print('NN-Stelle 6')
             output_data = interpreter.get_tensor(output_details[0]['index'])
-            print('NN-Stelle 7')
-            car.steering_angle = int(output_data)
-            print('NN-Stelle 8')
-            print(int(output_data))
+            print('Outputdata', output_data[0][0])
+            car.steering_angle = int(output_data[0][0])
+            #print(input_details)
+            #print(output_details)
+            #print(img.shape, img.dtype)
+
+            #print("int(output_data)")
         else:         
             # Spurerkennung
             track_detection.center(center_image)
@@ -255,10 +247,10 @@ def generate_stream(cam):
             car.drive2(0)
         if car.speed > 0:
             current_time = datetime.now().strftime("%Y%m%d_%H-%M-%S")
-            filename = "IMG_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.jpg".format(
+            filename = "IMG_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.png".format(
                     run_name, run_id, current_time, image_counter, car.speed, car.steering_angle)
             cv2.imwrite(os.path.join(PATH, 'img', filename), resized)
-            filename = "IMG_RAW_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.jpg".format(
+            filename = "IMG_RAW_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.png".format(
                     run_name, run_id, current_time, image_counter, car.speed, car.steering_angle)
             cv2.imwrite(os.path.join(PATH, 'img', filename), frame)
             image_counter += 1
