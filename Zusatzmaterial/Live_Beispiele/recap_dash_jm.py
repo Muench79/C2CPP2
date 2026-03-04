@@ -109,7 +109,7 @@ try:
     # Offset
     offset = data['Offset']
     offset_line = data['Offset_Line']
-    neural_network = data['Neural-Network']
+    #neural_network = data['Neural-Network']
 except:
     # HSV Filter erstellen
     hsv_range = HSVRange((100, 150, 50), (140, 255, 255))
@@ -122,9 +122,9 @@ except:
     offset_line = 1000
     data = {}
     neural_network = False
+neural_network = False
 
-
-
+#sys.exit()
 # Dash Stylesheet setzen
 external_stylesheets = [dbc.themes.DARKLY]
 server = Flask(__name__)
