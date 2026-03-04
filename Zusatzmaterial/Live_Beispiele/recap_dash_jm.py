@@ -18,6 +18,9 @@ from trackdetection import TrackDetection
 import uuid
 from datetime import datetime
 import logging
+import tflite_runtime.interpreter as tflite
+ 
+#-runtime.interpreter as ftlite
 
 # Pfad ermitteln
 PATH = os.path.join(os.path.split(os.path.abspath(__file__))[0], '')
@@ -27,6 +30,9 @@ CONFIG_FILE_NAME = 'config.json'
 
 # Pfad für den Zugriff auf die Konfigurationsdatei
 CONFIG_FILE_PATH = PATH + CONFIG_FILE_NAME       
+
+# Bildgröße für NN
+IMG_SIZE = (224, 224)
 
 # WLAN power-save deaktivieren
 os.system('sudo iw dev wlan0 set power_save off')
@@ -44,7 +50,7 @@ console_handler.setLevel(logging.INFO)
 # create format handler (console)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 console_handler.setFormatter(formatter)
-console_handler.setLevel(logging.INFO)
+console_handler.setLevel(logging.CRITICAL)
 
 # create format handler (file)
 file_handler = logging.FileHandler(os.path.join(PATH, 'log.log'), mode="a", encoding="utf-8")
@@ -103,6 +109,7 @@ try:
     # Offset
     offset = data['Offset']
     offset_line = data['Offset_Line']
+    neural_network = data['Neural-Network']
 except:
     # HSV Filter erstellen
     hsv_range = HSVRange((100, 150, 50), (140, 255, 255))
@@ -114,6 +121,7 @@ except:
     offset = 50
     offset_line = 1000
     data = {}
+    neural_network = False
 
 
 
@@ -132,11 +140,12 @@ logging.getLogger("dash.dash").setLevel(logging.WARNING)
 logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 def generate_stream(cam):
-    global cropped_rgb, offset, offset_line, run_name, run_id, image_counter, stop_drive
+    global cropped_rgb, offset, offset_line, run_name, run_id, image_counter, stop_drive, IMG_SIZE, neural_network
     stop_drive = False
     track_detection = TrackDetection(cluster_size=5, cluster_distance=50)
     pos_left = False
     pos_right = False
+    neural_network_init = False
     while True:
         # Kamerabild einlesen
         frame = cam.get_frame()
@@ -150,10 +159,10 @@ def generate_stream(cam):
         h, w = filtered.shape
         # Farbbild zuschneiden
         resized = resized[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h),
-                          int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
+                        int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
         # Gefiltertes Bild zuschneiden
         cropped = filtered[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h),
-                           int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
+                        int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
         # Messoffset berechnen (immer Bildhöhe - Offset)
         measuring_offset = resized.shape[0] - offset
         
@@ -161,11 +170,48 @@ def generate_stream(cam):
         h, w, c = resized.shape
         # Bildmitte berechnen
         center_image = int(w/2)
-        # Spurerkennung
-        track_detection.center(center_image)
-        track_detection.row(cropped[measuring_offset])
-        
-        if track_detection.count == 2:
+        #print(neural_network)
+        if neural_network == True:
+            if not neural_network_init:
+                print('INIT 1')
+                interpreter = tflite.Interpreter(model_path=PATH + 'live_model_tflite.tflite')
+                print('INIT 2')
+                input_details = interpreter.get_input_details()
+                print('INIT 3')
+                output_details = interpreter.get_output_details()
+                print('INIT 4')
+                interpreter.allocate_tensors()
+                neural_network_init = True
+            print('NN-Stelle 1')
+            #img = frame[:,:,::-1]
+            img = cv2.resize(frame, IMG_SIZE)
+            
+            print('NN-Stelle 2')
+            img = np.asarray(img) / 255
+            print(img[0])
+            img = np.float32(img)
+            print('NN-Stelle 3')
+            img = np.expand_dims(img, axis=0)
+            print('NN-Stelle 4')
+            try:
+                interpreter.set_tensor(input_details[0]['index'], img)
+            except Exception as e:
+                print(e)
+            
+            print('NN-Stelle 5')
+            interpreter.invoke()
+            print('NN-Stelle 6')
+            output_data = interpreter.get_tensor(output_details[0]['index'])
+            print('NN-Stelle 7')
+            car.steering_angle = int(output_data)
+            print('NN-Stelle 8')
+            print(int(output_data))
+        else:         
+            # Spurerkennung
+            track_detection.center(center_image)
+            track_detection.row(cropped[measuring_offset])
+            
+            if track_detection.count == 2:
                 # Zwei Spuren erkannt
                 # Spurpositionen löschen
                 pos_left = False
@@ -179,34 +225,34 @@ def generate_stream(cam):
                 # Lenkwinkel setzen
                 car.steering_angle = grad
                 log_message('DEBUG', 'Beide linien erkannt', offset=offset, diff=diff, grad=grad, steering_angle=car.steering_angle, run_name=run_name, run_id=run_id, image_counter=image_counter)      
-        elif track_detection.count == 1:
-            # Nur eine Spur erkannt
-            # Position (1 = links, 2 = recht) ermitteln
-            position = track_detection.position
-            if (position == 1 or pos_left) and not pos_right:
-                # Linke Spur
-                pos_left = True
-                # Abweichung berechnen
-                diff = ((center_image - offset_line) - track_detection.x_2)
-                # Lenkwinkel berechen
-                grad = int(math.degrees(math.atan2(offset, diff)))
-                # Lenkwinkel setzen
-                car.steering_angle = grad
-                log_message('DEBUG', 'Nur linke Linie erkannt', offset=offset, diff=diff, grad=grad, steering_angle=car.steering_angle, run_name=run_name, run_id=run_id, image_counter=image_counter)
-            elif (position == 2 or pos_right) and not pos_left:
-                # Rechte Spur
-                pos_right = True
-                # Abweichung berechnen
-                diff = ((center_image + offset_line) - track_detection.x_1)
-                # Lenkwinkel berechen
-                grad = int(math.degrees(math.atan2(offset, diff)))
-                # Lenkwinkel setzen
-                car.steering_angle = grad
-                log_message('DEBUG', 'Nur rechte Linie erkannt', offset=offset, diff=diff, grad=grad, steering_angle=car.steering_angle, run_name=run_name, run_id=run_id, image_counter=image_counter)
-        else:
-            log_message('DEBUG', 'Keine Linien erkannt', offset=offset, steering_angle=car.steering_angle, run_name=run_name, run_id=run_id, image_counter=image_counter)
+            elif track_detection.count == 1:
+                # Nur eine Spur erkannt
+                # Position (1 = links, 2 = recht) ermitteln
+                position = track_detection.position
+                if (position == 1 or pos_left) and not pos_right:
+                    # Linke Spur
+                    pos_left = True
+                    # Abweichung berechnen
+                    diff = ((center_image - offset_line) - track_detection.x_2)
+                    # Lenkwinkel berechen
+                    grad = int(math.degrees(math.atan2(offset, diff)))
+                    # Lenkwinkel setzen
+                    car.steering_angle = grad
+                    log_message('DEBUG', 'Nur linke Linie erkannt', offset=offset, diff=diff, grad=grad, steering_angle=car.steering_angle, run_name=run_name, run_id=run_id, image_counter=image_counter)
+                elif (position == 2 or pos_right) and not pos_left:
+                    # Rechte Spur
+                    pos_right = True
+                    # Abweichung berechnen
+                    diff = ((center_image + offset_line) - track_detection.x_1)
+                    # Lenkwinkel berechen
+                    grad = int(math.degrees(math.atan2(offset, diff)))
+                    # Lenkwinkel setzen
+                    car.steering_angle = grad
+                    log_message('DEBUG', 'Nur rechte Linie erkannt', offset=offset, diff=diff, grad=grad, steering_angle=car.steering_angle, run_name=run_name, run_id=run_id, image_counter=image_counter)
+            else:
+                log_message('DEBUG', 'Keine Linien erkannt', offset=offset, steering_angle=car.steering_angle, run_name=run_name, run_id=run_id, image_counter=image_counter)
         if stop_drive:
-                    car.drive2(0)
+            car.drive2(0)
         if car.speed > 0:
             current_time = datetime.now().strftime("%Y%m%d_%H-%M-%S")
             filename = "IMG_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.jpg".format(
@@ -296,7 +342,9 @@ app.layout = dbc.Container([
         dbc.Row([
             dbc.Col([
                 dbc.Button("Werte speichern", id="btn_store", color="primary")]),
-                ])
+                dcc.Checklist(id="nn-checkbox", options=[{"label": "Neuronales Netz", "value": "on"}],
+        value=[])
+])
         
 
     ])
@@ -342,7 +390,6 @@ def handle_click_drive_stop(value):
 @app.callback(
     Output('dummy-output', 'children'),
     Input("btn_store", "n_clicks"),
-    prevent_initial_call=True
 )
 def handle_click_store_values(value):
     global hsv_range, cropp_img, offset, offset_line, data
@@ -364,7 +411,18 @@ def handle_click_store_values(value):
         # Daten in die Konfigurationsdatei schreiben
         json.dump(data, f, indent=4)
     return ""
-
+@app.callback(
+    Output('dummy-output', 'children', allow_duplicate=True),
+    Input('nn-checkbox', 'value'),
+    prevent_initial_call=True
+)
+def nn_ceckbox(value):
+    global neural_network
+    if len(value) == 1:
+        neural_network = True
+    else:
+        neural_network = False
+    return ""
 
 if __name__ == "__main__":
     try:
