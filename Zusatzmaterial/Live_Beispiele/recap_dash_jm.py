@@ -32,7 +32,7 @@ CONFIG_FILE_NAME = 'config.json'
 CONFIG_FILE_PATH = PATH + CONFIG_FILE_NAME       
 
 # Bildgröße für NN
-IMG_SIZE = (224, 224)
+IMG_SIZE = (108, 108)
 
 # WLAN power-save deaktivieren
 os.system('sudo iw dev wlan0 set power_save off')
@@ -135,9 +135,9 @@ cam = Camera()
 # Dash app erzeugen
 app = Dash(external_stylesheets=external_stylesheets, server=server)
 
-logging.getLogger("dash").setLevel(logging.WARNING)
-logging.getLogger("dash.dash").setLevel(logging.WARNING)
-logging.getLogger("werkzeug").setLevel(logging.WARNING)
+# logging.getLogger("dash").setLevel(logging.WARNING)
+# logging.getLogger("dash.dash").setLevel(logging.WARNING)
+# logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 def generate_stream(cam):
     global cropped_rgb, offset, offset_line, run_name, run_id, image_counter, stop_drive, IMG_SIZE, neural_network
@@ -173,13 +173,13 @@ def generate_stream(cam):
         #print(neural_network)
         if neural_network == True:
             if not neural_network_init:
-                interpreter = tflite.Interpreter(model_path=PATH + 'live_model_tflite.tflite')
+                interpreter = tflite.Interpreter(model_path=PATH + 'live_model_tflite_nvidia_img.tflite')
                 input_details = interpreter.get_input_details()
                 output_details = interpreter.get_output_details()
                 interpreter.allocate_tensors()
                 neural_network_init = True
             #img = frame[:,:,::-1]
-            img = cv2.resize(frame, IMG_SIZE)
+            img = cv2.resize(resized, IMG_SIZE)
             
             img = np.asarray(img) / 255
             img = np.float32(img)
@@ -191,8 +191,12 @@ def generate_stream(cam):
             
             interpreter.invoke()
             output_data = interpreter.get_tensor(output_details[0]['index'])
-            print('Outputdata', output_data[0][0])
+            #print('Outputdata', output_data[0][0])
             car.steering_angle = int(output_data[0][0])
+            input_details = interpreter.get_input_details()
+            print('Lenkwinklel:', car.steering_angle)
+            #print(input_details[0]['shape'])
+
             #print(input_details)
             #print(output_details)
             #print(img.shape, img.dtype)
@@ -245,14 +249,14 @@ def generate_stream(cam):
                 log_message('DEBUG', 'Keine Linien erkannt', offset=offset, steering_angle=car.steering_angle, run_name=run_name, run_id=run_id, image_counter=image_counter)
         if stop_drive:
             car.drive2(0)
-        if car.speed > 0:
+        if car.speed > 0 and False:
             current_time = datetime.now().strftime("%Y%m%d_%H-%M-%S")
-            filename = "IMG_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.png".format(
+            filename = "IMG_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.jpg".format(
                     run_name, run_id, current_time, image_counter, car.speed, car.steering_angle)
-            cv2.imwrite(os.path.join(PATH, 'img', filename), resized)
-            filename = "IMG_RAW_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.png".format(
+            cv2.imwrite(os.path.join(PATH, 'img', '2026-03-05', filename), resized)
+            filename = "IMG_RAW_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.jpg".format(
                     run_name, run_id, current_time, image_counter, car.speed, car.steering_angle)
-            cv2.imwrite(os.path.join(PATH, 'img', filename), frame)
+            cv2.imwrite(os.path.join(PATH, 'img', '2026-03-05', filename), frame)
             image_counter += 1
         
             cv2.line(cropped_rgb, (0, measuring_offset), (w, measuring_offset), (0, 0, 255), 3)

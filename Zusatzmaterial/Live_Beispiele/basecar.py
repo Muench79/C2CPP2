@@ -174,6 +174,7 @@ class BaseCar:
             speed (int): speed at which to drive
             direction (int, optional): Driving direction. 1 for forwards, -1 for backwards. Defaults to 1.
         """
+        print("speed/direction", speed, direction)
         self.speed = int(speed)
         self.direction = direction
 

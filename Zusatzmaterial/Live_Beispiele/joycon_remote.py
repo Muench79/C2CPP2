@@ -10,11 +10,11 @@ import uuid
 from cv2 import imwrite, putText
 from datetime import datetime
 
-from helpers.basisklassen_cam import Camera
-from src.basecar import BaseCar
+from basisklassen_cam import Camera
+from basecar import BaseCar
 
 ANGLE_AXIS_ID = 2
-SPEED_AXIS_ID = 1
+SPEED_AXIS_ID = 3
 
 # CREATION OF THE CAR & CAMERA
 print("-" * 30)
@@ -69,22 +69,43 @@ def main():
     last_angle = 0
     last_speed = 0
 
+    angle = 90
+    speed = 0
+    button_held = False
     while keepPlaying:
         clock.tick(60)
-        # check for changed joystick values and set angle and speed accordingly
         for event in pygame.event.get():
-            if event.type == pygame.JOYAXISMOTION:
-                joy_angle = joysticks[0].get_axis(ANGLE_AXIS_ID)
-                joy_speed = joysticks[0].get_axis(SPEED_AXIS_ID)
+            if event.type == pygame.JOYHATMOTION:
+                hat = joysticks[0].get_hat(0)
+                angle = int(90 - hat[1] * 45)
 
-                angle = int(90 + joy_angle * 45 + 0.5)
-                speed = int(-joy_speed*50)
+            if event.type == pygame.JOYBUTTONDOWN:
+                if event.button == 0:
+                    button_held = True
+            if event.type == pygame.JOYBUTTONUP:
+                if event.button == 0:
+                    button_held = False
+            speed = 30 if button_held else 0
+        car.drive2(speed)
+        last_angle += int((angle-last_angle)*0.4)
+        car.steering_angle = last_angle
+        # check for changed joystick values and set angle and speed accordingly
+        # for event in pygame.event.get():
+        #     print(event.type)
+        #     if event.type == pygame.JOYAXISMOTION:
+        #         print(f"Axis {event.axis}: {event.value:.3f}")
+        #     #if event.type == 9:
+        #         joy_angle = joysticks[0].get_axis(ANGLE_AXIS_ID)
+        #         joy_speed = joysticks[0].get_axis(SPEED_AXIS_ID)
+        #         print(event.type, joy_angle, joy_speed)
+        #         angle = int(90 + joy_angle * 45 + 0.5)
+        #         speed = int(-joy_speed*50)
 
-                if ((last_angle != angle) or (last_speed != speed)):
-                    car.drive(angle, speed)
+                # if ((last_angle != angle) or (last_speed != speed)):
+                #     car.drive(angle, speed)
 
-                last_angle = angle
-                last_speed = speed
+                # last_angle = angle
+                # last_speed = speed
         
         # grab an image from the camera
         frame = cam.get_frame()
@@ -94,7 +115,7 @@ def main():
             and cam.imageNumber % cam.k == 0
         ):
             currentTime = datetime.now().strftime("%Y%m%d_%H-%M-%S")
-            filename = "IMG_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.jpg".format(
+            filename = "IMG_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.png".format(
                 cam.runName,
                 cam.runID,
                 currentTime,
