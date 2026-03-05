@@ -123,3 +123,6 @@ class HSVRange:
 if __name__ == '__main__':
     hsv_range = HSVRange((10,20,20), (40,50,60))
     print(hsv_range)
+    print(HSVRange.__doc__)
+    print(HSVRange.v_min_max.__doc__)
+    

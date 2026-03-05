@@ -1,3 +1,4 @@
+
 class Cropp:
     """
     Repräsentiert einen zweidimensionalen Zuschneidebereich (Crop-Bereich).

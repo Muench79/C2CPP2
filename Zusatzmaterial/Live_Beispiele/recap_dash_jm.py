@@ -160,6 +160,9 @@ def generate_stream(cam):
         # Farbbild zuschneiden
         resized = resized[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h),
                         int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
+        #test = resized[:,22:]
+        #print(test.shape)
+        
         # Gefiltertes Bild zuschneiden
         cropped = filtered[int(cropp_img.ns[0]*0.01*h):int(cropp_img.ns[1]*0.01*h),
                         int(cropp_img.we[0]*0.01*w):int(cropp_img.we[1]*0.01*w):]
