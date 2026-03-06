@@ -1,7 +1,9 @@
+# -*- coding: utf-8 -*-
 
 class Cropp:
     """
     Repräsentiert einen zweidimensionalen Zuschneidebereich (Crop-Bereich).
+    Version: 1.0.0
 
     Der Bereich wird durch zwei Wertepaare definiert:
     - ns: Nord-Süd-Ausrichtung (vertikale Begrenzung)

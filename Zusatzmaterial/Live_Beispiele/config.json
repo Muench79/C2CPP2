@@ -18,5 +18,12 @@
         ]
     },
     "Offset": 70,
-    "Offset_Line": 120
+    "Offset_Line": 120,
+    "Neural-Network": {
+        "ImgSize": [
+            108,
+            108
+        ],
+        "Use": true
+    }
 }

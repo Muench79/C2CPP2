@@ -1,26 +1,13 @@
+# -*- coding: utf-8 -*-
+
 import numpy as np
 import logging
 
-# create logger
+# Logger erstellen
 logger = logging.getLogger(__name__)
 
-
-# # create format handler (console)
-# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-# console_handler.setFormatter(formatter)
-# console_handler.setLevel(logging.INFO)
-
-# # create format handler (file)
-# file_handler = logging.FileHandler(os.path.join(PATH, 'log.log'), mode="a", encoding="utf-8")
-# file_handler.setFormatter(formatter)
-# file_handler.setLevel(logging.DEBUG)
-
-# add handler
-# logger.addHandler(console_handler)
-# logger.addHandler(file_handler)
-
 def log_message(level, message, **kwargs):
-    # Format and generate log message
+    # Formatrierung und Meldungen erstellen
     param_str = ' | '.join(f'{key}={value}' for key, value in kwargs.items())
     full_message = f'{message} | {param_str}' if param_str else message
 
@@ -38,7 +25,36 @@ def log_message(level, message, **kwargs):
         logger.info(f'Unbekannter Loglevel \'{level}\': {full_message}')
 
 class TrackDetection:
+    """
+    Erkennt Spurmarkierungen in einer binären Bildzeile und bestimmt die Spurposition.
+    Version: 1.0.0
+    
+    Die Klasse analysiert eine einzelne Zeile eines binären Bildes (0 = schwarz,
+    255 = weiß), fasst zusammenhängende weiße Pixel zu Clustern zusammen und
+    bewertet diese anhand ihrer Größe und ihres Abstands. Auf Basis der erkannten
+    Cluster wird bestimmt, ob sich die Spur links, rechts oder mittig befindet.
+    Zusätzlich stellt die Klasse verschiedene geometrische Eigenschaften wie
+    innere und äußere Begrenzungen der Spur zur Verfügung.
+
+    Args:
+        center (int, optional): Referenzpunkt (z. B. Bildmitte), der zur
+            Bestimmung der relativen Position eines einzelnen Clusters genutzt
+            wird. Standardwert: 100.
+        cluster_size (int, optional): Minimale Größe eines Clusters, damit er als
+            gültig gewertet wird. Standardwert: 5.
+        cluster_distance (int, optional): Mindestabstand zwischen zwei Clustern,
+            damit sie als getrennte Spurmarkierungen gelten. Standardwert: 50.
+    """
+
     def __init__(self, center=100, cluster_size = 5, cluster_distance = 50):
+        """
+        Initialisiert die Spurdetektion mit den angegebenen Parametern.
+
+        Args:
+            center (int): Referenzpunkt zur Bestimmung der Spurposition.
+            cluster_size (int): Minimale Größe eines gültigen Clusters.
+            cluster_distance (int): Mindestabstand zwischen zwei Clustern.
+        """
         self.__center = center
         self.__clusters = []
         self.__cluster_size = cluster_size
@@ -52,13 +68,42 @@ class TrackDetection:
         self.__position = None
 
     def center(self, center):
+        """
+        Setzt den Referenzpunkt für die Spurposition neu.
+
+        Args:
+            center (int): Neuer Referenzpunkt, typischerweise die Bildmitte.
+        """
         self.__center = center
     
     def cluster_settings(self, cluster_size, cluster_distance):
+        """
+        Aktualisiert die Mindestgröße und den Mindestabstand für Cluster.
+
+        Args:
+            cluster_size (int): Minimale Clustergröße.
+            cluster_distance (int): Mindestabstand zwischen zwei Clustern.
+        """
         self.__cluster_size = cluster_size
         self.__cluster_distance = cluster_distance
 
     def row(self, row):
+        """
+        Analysiert eine binäre Bildzeile, erkennt Cluster und bestimmt die Spurposition.
+
+        Die Methode sucht zusammenhängende weiße Pixel (255), gruppiert sie zu Clustern
+        und bewertet diese anhand der eingestellten Parameter. Je nach Anzahl und
+        Qualität der Cluster wird die Spurposition bestimmt.
+
+        Args:
+            row (numpy.ndarray): Eine eindimensionale Zeile eines binären Bildes.
+
+        Returns:
+            tuple | None:
+                - Bei einem gültigen Einzelcluster: (x_start, x_ende)
+                - Bei zwei gültigen Clustern: ((x1_start, x1_ende), (x2_start, x2_ende))
+                - None, wenn keine gültige Spur erkannt wurde.
+        """
         self.__x_left_inner = None
         self.__x_left_outer = None
         self.__x_right_inner = None
@@ -130,44 +175,108 @@ class TrackDetection:
     
     @property
     def position(self):
+        """
+        Gibt die erkannte Spurposition zurück.
+
+        Returns:
+            int | None:
+                - 0: Spur erkannt (zwei Cluster)
+                - 1: Spur links (ein Cluster links des Zentrums)
+                - 2: Spur rechts (ein Cluster rechts des Zentrums)
+                - None: keine gültige Spur erkannt
+        """
         return self.__position
     
     @property
     def x_left_inner(self):
+        """
+        Gibt die innere Grenze des linken Clusters zurück.
+
+        Returns:
+            int | None: Innere linke Begrenzung oder None.
+        """
         return self.__x_left_inner
     
     @property
     def x_left_outer(self):
+        """
+        Gibt die äußere Grenze des linken Clusters zurück.
+
+        Returns:
+            int | None: Äußere linke Begrenzung oder None.
+        """
         return self.__x_left_outer
     
     @property
     def x_right_inner(self):
+        """
+        Gibt die innere Grenze des rechten Clusters zurück.
+
+        Returns:
+            int | None: Innere rechte Begrenzung oder None.
+        """
         return self.__x_right_inner
     
     @property
     def x_right_outer(self):
+        """
+        Gibt die äußere Grenze des rechten Clusters zurück.
+
+        Returns:
+            int | None: Äußere rechte Begrenzung oder None.
+        """
         return self.__x_right_outer
     
     @property
     def x_1(self):
+        """
+        Startkoordinate eines einzelnen Clusters.
+
+        Returns:
+            int | None: Startposition oder None.
+        """
         return self.__x_1
     
     @property
     def x_2(self):
+        """
+        Endkoordinate eines einzelnen Clusters.
+
+        Returns:
+            int | None: Endposition oder None.
+        """
         return self.__x_2
     
     @property
     def count(self):
+        """
+        Anzahl der erkannten Cluster.
+
+        Returns:
+            int: Anzahl der Cluster.
+        """
         return len(self.__clusters)
 
     @property
     def distance_outer(self):
+        """
+        Abstand zwischen den äußeren Grenzen zweier Cluster.
+
+        Returns:
+            int | None: Abstand oder None, wenn nicht berechenbar.
+        """
         if self.__x_left_outer is not None and self.__x_right_outer is not None:
             print(self.__x_left_outer, self.__x_right_outer)
             return self.__x_right_outer - self.__x_left_outer
     
     @property
     def distance_inner(self):
+        """
+        Abstand zwischen den inneren Grenzen zweier Cluster.
+
+        Returns:
+            int | None: Abstand oder None, wenn nicht berechenbar.
+        """
         if self.__x_left_inner is not None and self.__x_right_inner is not None:
             return self.__x_right_inner - self.__x_left_inner
 

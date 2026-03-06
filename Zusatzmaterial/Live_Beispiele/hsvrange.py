@@ -1,9 +1,12 @@
+# -*- coding: utf-8 -*-
+
 import numpy as np
 
 # Klasse HSVRange
 class HSVRange:
     """
     Repräsentiert einen HSV-Farbbereich mit unterer und oberer Grenze.
+    Version: 1.0.0
 
     Die Klasse speichert die Grenzen als NumPy-Arrays und stellt Methoden
     sowie Properties bereit, um die Werte zu setzen oder auszulesen.
@@ -123,6 +126,4 @@ class HSVRange:
 if __name__ == '__main__':
     hsv_range = HSVRange((10,20,20), (40,50,60))
     print(hsv_range)
-    print(HSVRange.__doc__)
-    print(HSVRange.v_min_max.__doc__)
     
