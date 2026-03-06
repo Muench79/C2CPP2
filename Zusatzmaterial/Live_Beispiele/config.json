@@ -24,7 +24,7 @@
             108,
             108
         ],
-        "Use": true,
+        "Use": false,
         "File": "live_model_tflite_nvidia_img.tflite"
     }
 }

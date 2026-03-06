@@ -123,7 +123,7 @@ except:
     cropp_img.set_we([0, 100])
     # Offset
     offset = 70
-    offset_line = 120
+    offset_line = 80
     # Bildgröße für neuronalse Netz
     NEURAL_NETWORK_IMAGE_SIZE = (108, 108)
     # Neuronales Netz eingeschaltet
@@ -234,7 +234,7 @@ def generate_stream(cam):
                 # Abweichung bzw. Differenz ermitteln
                 diff = center_image - center_inner
                 # Lenkwinkel berechnen
-                grad = int(math.degrees(math.atan2(offset, diff)) )
+                grad = int(math.degrees(math.atan2(offset, diff)))
                 # Lenkwinkel setzen
                 car.steering_angle = grad
                 log_message('DEBUG', 'Beide linien erkannt', offset=offset, diff=diff, grad=grad, steering_angle=car.steering_angle, run_name=run_name, run_id=run_id, image_counter=image_counter)      
@@ -280,10 +280,10 @@ def generate_stream(cam):
             # Bild speichern
             cv2.imwrite(os.path.join(PATH, 'img', filename), resized)
             # Dateiname erstellen
-            filename = "IMG_RAW_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.jpg".format(
-                    run_name, run_id, current_time, image_counter, car.speed, car.steering_angle)
-            # Bild speichern
-            cv2.imwrite(os.path.join(PATH, 'img', filename), frame)
+            # filename = "IMG_RAW_{}_{}_{}_{:04d}_S{:03d}_A{:03d}.jpg".format(
+            #         run_name, run_id, current_time, image_counter, car.speed, car.steering_angle)
+            # # Bild speichern
+            # cv2.imwrite(os.path.join(PATH, 'img', filename), frame)
             # Bildzähler erhöhen
             image_counter += 1
         # Messlinien einzeichnen

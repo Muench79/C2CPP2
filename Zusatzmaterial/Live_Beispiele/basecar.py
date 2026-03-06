@@ -79,7 +79,7 @@ class BaseCar:
             turning_offset = 0
             forward_A = 0
             forward_B = 0
-        turning_offset = 35
+        turning_offset = -15
         # components
         self.__back_wheels = BackWheels(forward_A=forward_A, forward_B=forward_B)
         self.__front_wheels = FrontWheels(turning_offset=turning_offset)
