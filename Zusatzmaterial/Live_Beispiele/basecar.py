@@ -75,14 +75,11 @@ class BaseCar:
                 turning_offset = self.data["turning_offset"]
                 forward_A = self.data["forward_A"]
                 forward_B = self.data["forward_B"]
-                print("HHHHHHH")
         except:
             turning_offset = 0
             forward_A = 0
             forward_B = 0
-            print("HHHHHHH")
         turning_offset = 35
-        print(turning_offset)
         # components
         self.__back_wheels = BackWheels(forward_A=forward_A, forward_B=forward_B)
         self.__front_wheels = FrontWheels(turning_offset=turning_offset)

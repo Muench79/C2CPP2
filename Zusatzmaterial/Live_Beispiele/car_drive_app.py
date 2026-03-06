@@ -113,6 +113,7 @@ try:
     NEURAL_NETWORK_IMAGE_SIZE = data['Neural-Network']['ImgSize']
     # Neuronales Netz eingeschaltet
     neural_network_use = data['Neural-Network']['Use']
+    neural_network_file = data['Neural-Network']['File']
 except:
     # HSV Filter erstellen
     hsv_range = HSVRange((78, 138, 28), (132, 255, 255))
@@ -143,7 +144,9 @@ except:
     data['Offset_Line'] = offset_line
     # Daten für Neuronales Netz
     data['Neural-Network'] = {'ImgSize' : NEURAL_NETWORK_IMAGE_SIZE,
-                              'Use' : False} 
+                              'Use' : False}
+    neural_network_file = ""
+
 # Dash Stylesheet setzen
 external_stylesheets = [dbc.themes.DARKLY]
 server = Flask(__name__)
@@ -155,7 +158,7 @@ cam = Camera()
 app = Dash(external_stylesheets=external_stylesheets, server=server)
 
 def generate_stream(cam):
-    global cropped_rgb, offset, offset_line, run_name, run_id, image_counter, stop_drive, NEURAL_NETWORK_IMAGE_SIZE, neural_network_use, images_store
+    global cropped_rgb, offset, offset_line, run_name, run_id, image_counter, stop_drive, NEURAL_NETWORK_IMAGE_SIZE, neural_network_use, images_store, neural_network_file
     # Initialisierung
     # Fahrt stoppen
     stop_drive = False
@@ -195,7 +198,7 @@ def generate_stream(cam):
             if not neural_network_init:
                 # Neuronales Netz wurde noch nicht initialisiert
                 # Daten aus trainiertem Netz laden
-                interpreter = tflite.Interpreter(model_path=PATH + 'live_model_tflite_nvidia_img.tflite')
+                interpreter = tflite.Interpreter(model_path=PATH + neural_network_file)
                 input_details = interpreter.get_input_details()
                 output_details = interpreter.get_output_details()
                 interpreter.allocate_tensors()
@@ -492,7 +495,7 @@ def handle_click_drive_stop(value):
     prevent_initial_call=True
 )
 def handle_click_store_values(value):
-    global hsv_range, cropp_img, offset, offset_line, data, neural_network_use
+    global hsv_range, cropp_img, offset, offset_line, data, neural_network_use, neural_network_file
     # Daten speichern
     try:
         # HVS-Filter
@@ -511,7 +514,8 @@ def handle_click_store_values(value):
         data['Offset_Line'] = offset_line
         # Daten für Neuronales Netz
         data['Neural-Network'] = {'ImgSize' : NEURAL_NETWORK_IMAGE_SIZE,
-                                    'Use' : neural_network_use}
+                                    'Use' : neural_network_use,
+                                    'File' : neural_network_file}
         # Daten in die Konfigurationsdatei schreiben
         with open(CONFIG_FILE_PATH, 'w', encoding="utf-8") as f:    
             json.dump(data, f, indent=4)
